@@ -1,0 +1,27 @@
+package error
+
+import (
+	"strings"
+)
+
+type GenError struct {
+	Messages []string
+}
+
+func (e *GenError) Error() string {
+	bldr := strings.Builder{}
+	for i, m := range e.Messages {
+		if i == len(e.Messages)-1 {
+			bldr.WriteString(m)
+		} else {
+			bldr.WriteString(m + "->")
+		}
+	}
+
+	return bldr.String()
+}
+
+func (e *GenError) AddMsg(msg string) *GenError {
+	e.Messages = append(e.Messages, msg)
+	return e
+}

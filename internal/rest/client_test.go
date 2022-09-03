@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	genErr "github.com/greenac/chaching/internal/error"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -112,7 +113,7 @@ func TestClientImpl_makeRequest(t *testing.T) {
 			c := ClientImpl{HttpClient: &httpClientMock{DoError: e}}
 			req, _ := http.NewRequest("GET", "https://someurl.com", nil)
 			_, err := c.makeRequest(req, c.makeHeaders(&Headers{"one": HeaderValue{"a"}}))
-			So(err, ShouldResemble, e)
+			So(err, ShouldResemble, &genErr.GenError{Messages: []string{"ClientImpl:makeRequest:failed to make request with error: bad bad thing"}})
 		})
 
 		Convey("ClientImpl_makeRequest fails with error reading body", func() {
@@ -129,7 +130,7 @@ func TestClientImpl_makeRequest(t *testing.T) {
 			}
 			req, _ := http.NewRequest("GET", "https://someurl.com", nil)
 			_, err := c.makeRequest(req, c.makeHeaders(&Headers{"one": HeaderValue{"a"}}))
-			So(err, ShouldResemble, e)
+			So(err, ShouldResemble, &genErr.GenError{Messages: []string{"ClientImpl:makeRequest:failed to read response body with error: illiterate"}})
 		})
 	})
 }
@@ -144,10 +145,30 @@ func TestClientImpl_Get(t *testing.T) {
 				HttpClient: &httpClientMock{
 					DoResponse: http.Response{StatusCode: http.StatusOK, Status: "a-ok", Body: ioutil.NopCloser(bytes.NewReader(body))},
 				},
+				BodyReader: ioutil.ReadAll,
+				GetRequest: http.NewRequest,
 			}
 			r, err := c.Get("https://yippie.com", nil, UrlParams{UrlParam{LVal: "beach", Compare: UrlParamTypeEqual, RVal: "ball"}})
 			So(err, ShouldBeNil)
 			So(r, ShouldResemble, resp)
+		})
+
+		Convey("ClientImpl_Get fails when getting new request", func() {
+			url := "https://yippie.com"
+			e := errors.New("denied")
+			obj := mockRespObj{FirstName: "jimmy", LastName: "fallon", Age: "47"}
+			body, _ := json.Marshal(obj)
+			c := ClientImpl{
+				HttpClient: &httpClientMock{
+					DoResponse: http.Response{StatusCode: http.StatusOK, Status: "a-ok", Body: ioutil.NopCloser(bytes.NewReader(body))},
+				},
+				BodyReader: ioutil.ReadAll,
+				GetRequest: func(method, url string, body io.Reader) (*http.Request, error) {
+					return nil, e
+				},
+			}
+			_, err := c.Get(url, nil, UrlParams{UrlParam{LVal: "beach", Compare: UrlParamTypeEqual, RVal: "ball"}})
+			So(err, ShouldResemble, &genErr.GenError{Messages: []string{"ClientImpl:Get:failed to get new request with url: " + url + "with error: " + e.Error()}})
 		})
 	})
 }
@@ -163,10 +184,29 @@ func TestClientImpl_PostBody(t *testing.T) {
 					DoResponse: http.Response{StatusCode: http.StatusOK, Status: "a-ok", Body: ioutil.NopCloser(bytes.NewReader(body))},
 				},
 				BodyReader: ioutil.ReadAll,
+				GetRequest: http.NewRequest,
 			}
 			r, err := c.PostBody("https://yippie.com", nil, body)
 			So(err, ShouldBeNil)
 			So(r, ShouldResemble, resp)
+		})
+
+		Convey("ClientImpl_PostBody fails when getting new request", func() {
+			url := "https://yippie.com"
+			e := errors.New("denied")
+			obj := mockRespObj{FirstName: "jimmy", LastName: "fallon", Age: "47"}
+			body, _ := json.Marshal(obj)
+			c := ClientImpl{
+				HttpClient: &httpClientMock{
+					DoResponse: http.Response{StatusCode: http.StatusOK, Status: "a-ok", Body: ioutil.NopCloser(bytes.NewReader(body))},
+				},
+				BodyReader: ioutil.ReadAll,
+				GetRequest: func(method, url string, body io.Reader) (*http.Request, error) {
+					return nil, e
+				},
+			}
+			_, err := c.PostBody(url, nil, body)
+			So(err, ShouldResemble, &genErr.GenError{Messages: []string{"ClientImpl:PostBody:failed to get new request with url: " + url + "with error: " + e.Error()}})
 		})
 	})
 }
@@ -182,10 +222,29 @@ func TestClientImpl_PostUrl(t *testing.T) {
 					DoResponse: http.Response{StatusCode: http.StatusOK, Status: "a-ok", Body: ioutil.NopCloser(bytes.NewReader(body))},
 				},
 				BodyReader: ioutil.ReadAll,
+				GetRequest: http.NewRequest,
 			}
 			r, err := c.PostUrl("https://yippie.com", nil, UrlParams{UrlParam{LVal: "beach", Compare: UrlParamTypeEqual, RVal: "ball"}})
 			So(err, ShouldBeNil)
 			So(r, ShouldResemble, resp)
+		})
+
+		Convey("ClientImpl_PostUrl fails when getting new request", func() {
+			url := "https://yippie.com"
+			e := errors.New("denied")
+			obj := mockRespObj{FirstName: "jimmy", LastName: "fallon", Age: "47"}
+			body, _ := json.Marshal(obj)
+			c := ClientImpl{
+				HttpClient: &httpClientMock{
+					DoResponse: http.Response{StatusCode: http.StatusOK, Status: "a-ok", Body: ioutil.NopCloser(bytes.NewReader(body))},
+				},
+				BodyReader: ioutil.ReadAll,
+				GetRequest: func(method, url string, body io.Reader) (*http.Request, error) {
+					return nil, e
+				},
+			}
+			_, err := c.PostUrl(url, nil, UrlParams{UrlParam{LVal: "beach", Compare: UrlParamTypeEqual, RVal: "ball"}})
+			So(err, ShouldResemble, &genErr.GenError{Messages: []string{"ClientImpl:PostUrl:failed to get new request with url: " + url + "with error: " + e.Error()}})
 		})
 	})
 }
