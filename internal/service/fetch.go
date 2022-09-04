@@ -3,27 +3,27 @@ package fetch
 import (
 	"fmt"
 	genErr "github.com/greenac/chaching/internal/error"
-	"github.com/greenac/chaching/internal/rest"
+	"github.com/greenac/chaching/internal/rest/models"
 	"github.com/greenac/chaching/internal/utils"
 	"net/http"
 )
 
-func NewFetchService() IFetchService {
-	return &FetchService{}
+func NewFetchService(url string, rc models.IClient) *FetchService {
+	return &FetchService{Url: url, RestClient: rc}
 }
 
 type IFetchService interface {
-	Fetch(params rest.UrlParams) ([]byte, *genErr.GenError)
+	Fetch(params models.UrlParams) ([]byte, *genErr.GenError)
 }
 
 var _ IFetchService = (*FetchService)(nil)
 
 type FetchService struct {
 	Url        string
-	RestClient rest.IClient
+	RestClient models.IClient
 }
 
-func (fc *FetchService) Fetch(params rest.UrlParams) ([]byte, *genErr.GenError) {
+func (fc *FetchService) Fetch(params models.UrlParams) ([]byte, *genErr.GenError) {
 	resp, err := fc.RestClient.Get(fc.Url, nil, params)
 	if err != nil {
 		return []byte{}, err.AddMsg("FetchService:Fetch:failed to get")

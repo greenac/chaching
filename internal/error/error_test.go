@@ -15,7 +15,7 @@ func TestGenError_AddMsg(t *testing.T) {
 }
 
 func TestGenError_Error(t *testing.T) {
-	Convey("TestGenError_AddMsg", t, func() {
+	Convey("TestGenError_Error", t, func() {
 		msg1 := "message one"
 		msg2 := "message two"
 		ge := GenError{Messages: []string{msg1, msg2}}
