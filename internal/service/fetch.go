@@ -8,12 +8,17 @@ import (
 	"net/http"
 )
 
-func NewFetchService(url string, rc models.IClient) *FetchService {
-	return &FetchService{Url: url, RestClient: rc}
+type IFetchData interface {
+	Url() string
+}
+
+func NewFetchService(url string, rc models.IClient, joiner func(base string, elem ...string) (result string, err error)) *FetchService {
+	return &FetchService{Url: url, RestClient: rc, PathJoiner: joiner}
 }
 
 type IFetchService interface {
 	Fetch(params models.UrlParams) ([]byte, *genErr.GenError)
+	FetchWithFetchData(fetchData IFetchData) ([]byte, *genErr.GenError)
 }
 
 var _ IFetchService = (*FetchService)(nil)
@@ -21,6 +26,7 @@ var _ IFetchService = (*FetchService)(nil)
 type FetchService struct {
 	Url        string
 	RestClient models.IClient
+	PathJoiner func(base string, elem ...string) (result string, err error)
 }
 
 func (fc *FetchService) Fetch(params models.UrlParams) ([]byte, *genErr.GenError) {
@@ -29,9 +35,28 @@ func (fc *FetchService) Fetch(params models.UrlParams) ([]byte, *genErr.GenError
 		return []byte{}, err.AddMsg("FetchService:Fetch:failed to get")
 	}
 
+	return fc.handleResponse(resp)
+}
+
+func (fc *FetchService) FetchWithFetchData(fetchData IFetchData) ([]byte, *genErr.GenError) {
+	uri, err := fc.PathJoiner(fc.Url, fetchData.Url())
+	if err != nil {
+		ge := genErr.GenError{}
+		return []byte{}, ge.AddMsg("FetchService:FetchWithFetchData failed to join urls: " + fc.Url + " and " + fetchData.Url())
+	}
+
+	resp, ge := fc.RestClient.Get(uri, nil, models.UrlParams{})
+	if ge != nil {
+		return []byte{}, ge.AddMsg("FetchService:Fetch:failed to get")
+	}
+
+	return fc.handleResponse(resp)
+}
+
+func (fc *FetchService) handleResponse(resp models.Response) ([]byte, *genErr.GenError) {
 	if !utils.SliceContains([]int{http.StatusOK, http.StatusCreated, http.StatusAccepted}, resp.StatusCode) {
 		ge := genErr.GenError{}
-		return []byte{}, ge.AddMsg(fmt.Sprintf("FetchService:Fetch failed with code: %d and status %s for url: %s", resp.StatusCode, resp.Status, fc.Url))
+		return []byte{}, ge.AddMsg(fmt.Sprintf("FetchService:handleResponse failed with code: %d and status %s for url: %s", resp.StatusCode, resp.Status, fc.Url))
 	}
 
 	return resp.Body, nil

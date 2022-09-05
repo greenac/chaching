@@ -40,3 +40,24 @@ func (pr PolygonAggregateRequestParams) Url() string {
 		pr.Name, pr.Multiplier, pr.Timespan, pr.From.UnixMilli(), pr.To.UnixMilli(), pr.SortDirection, pr.Limit,
 	)
 }
+
+type PolygonDataPoint struct {
+	ClosePrice          float64 `json:"c"`  // close price
+	HighestPrice        float64 `json:"h"`  // highest price
+	LowestPrice         float64 `json:"l"`  // lowest price
+	NumOfTxs            int     `json:"n"`  // number of transactions
+	OpenPrice           float64 `json:"o"`  // open price
+	StartTime           int64   `json:"t"`  // window start unix time stamp (millis)
+	Volume              int     `json:"v"`  // volume
+	VolumeWeightedPrice float64 `json:"vw"` // volume weighted ave price
+}
+
+type PolygonAggregateResponse struct {
+	Adjusted     bool               `json:"adjusted"`
+	QueryCount   int                `json:"queryCount"`
+	RequestID    string             `json:"request_id"`
+	ResultsCount int                `json:"resultsCount"`
+	Status       string             `json:"status"`
+	Ticker       string             `json:"ticker"`
+	DataPoints   []PolygonDataPoint `json:"results"`
+}

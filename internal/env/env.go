@@ -21,29 +21,29 @@ type IEnv interface {
 var _ IEnv = (*Env)(nil)
 
 type Env struct {
-	baseEnv IBaseEnv
+	BaseEnv IBaseEnv
 }
 
 func (e *Env) GetBool(key string) bool {
-	return e.baseEnv.GetBool(key)
+	return e.BaseEnv.GetBool(key)
 }
 
 func (e *Env) GetFloat64(key string) float64 {
-	return e.baseEnv.GetFloat64(key)
+	return e.BaseEnv.GetFloat64(key)
 }
 
 func (e *Env) GetInt(key string) int {
-	return e.baseEnv.GetInt(key)
+	return e.BaseEnv.GetInt(key)
 }
 
 func (e *Env) GetString(key string) string {
-	return e.baseEnv.GetString(key)
+	return e.BaseEnv.GetString(key)
 }
 
 func (e *Env) IsSet(key string) bool {
-	return e.baseEnv.IsSet(key)
+	return e.BaseEnv.IsSet(key)
 }
 
 func (e *Env) GetAll() map[string]interface{} {
-	return e.baseEnv.AllSettings()
+	return e.BaseEnv.AllSettings()
 }

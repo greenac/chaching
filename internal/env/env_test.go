@@ -42,7 +42,7 @@ func (me mockEnvBase) AllSettings() map[string]interface{} {
 func TestEnv_GetBool(t *testing.T) {
 	Convey("TestEnv_GetBool", t, func() {
 		var val bool = true
-		env := Env{baseEnv: mockEnvBase{BoolVal: val}}
+		env := Env{BaseEnv: mockEnvBase{BoolVal: val}}
 		So(env.GetBool("something"), ShouldEqual, val)
 	})
 }
@@ -50,7 +50,7 @@ func TestEnv_GetBool(t *testing.T) {
 func TestEnv_GetFloat64(t *testing.T) {
 	Convey("TestEnv_GetFloat64", t, func() {
 		var val float64 = 1.1
-		env := Env{baseEnv: mockEnvBase{FloatVal: val}}
+		env := Env{BaseEnv: mockEnvBase{FloatVal: val}}
 		So(env.GetFloat64("something"), ShouldEqual, val)
 	})
 }
@@ -58,7 +58,7 @@ func TestEnv_GetFloat64(t *testing.T) {
 func TestEnv_GetInt(t *testing.T) {
 	Convey("TestEnv_GetInt", t, func() {
 		var val = 1
-		env := Env{baseEnv: mockEnvBase{IntVal: val}}
+		env := Env{BaseEnv: mockEnvBase{IntVal: val}}
 		So(env.GetInt("something"), ShouldEqual, val)
 	})
 }
@@ -66,7 +66,7 @@ func TestEnv_GetInt(t *testing.T) {
 func TestEnv_GetString(t *testing.T) {
 	Convey("TestEnv_GetString", t, func() {
 		var val = "beach"
-		env := Env{baseEnv: mockEnvBase{StringVal: val}}
+		env := Env{BaseEnv: mockEnvBase{StringVal: val}}
 		So(env.GetString("something"), ShouldEqual, val)
 	})
 }
@@ -74,7 +74,7 @@ func TestEnv_GetString(t *testing.T) {
 func TestEnv_IsSet(t *testing.T) {
 	Convey("TestEnv_GetString", t, func() {
 		var val = false
-		env := Env{baseEnv: mockEnvBase{IsSetVal: val}}
+		env := Env{BaseEnv: mockEnvBase{IsSetVal: val}}
 		So(env.IsSet("something"), ShouldEqual, val)
 	})
 }
@@ -82,7 +82,7 @@ func TestEnv_IsSet(t *testing.T) {
 func TestEnv_GetAll(t *testing.T) {
 	Convey("TestEnv_GetAll", t, func() {
 		var val = map[string]interface{}{"yippie": "yay"}
-		env := Env{baseEnv: mockEnvBase{Settings: val}}
+		env := Env{BaseEnv: mockEnvBase{Settings: val}}
 		So(env.GetAll(), ShouldResemble, val)
 	})
 }
