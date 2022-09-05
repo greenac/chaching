@@ -8,20 +8,27 @@ import (
 	"github.com/greenac/chaching/internal/rest/models"
 	model "github.com/greenac/chaching/internal/rest/polygon/models"
 	fetch "github.com/greenac/chaching/internal/service"
+	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 )
 
 func main() {
-	envVars := env.Env{BaseEnv: viper.New()}
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	l := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
+	l.Info().Msg("Running fetch...")
+
+	envVars := env.Env{BaseEnv: viper.New()}
 	fc := controller.FetchController{
 		Targets:     []string{"AAPL", "AMZN"},
 		Start:       time.Now().Add(-4 * 24 * time.Hour),
 		Delta:       1 * 24 * time.Hour,
+		Logger:      &l,
 		Unmarshaler: json.Unmarshal,
 		FetchService: fetch.FetchService{
 			Url: envVars.GetString("PolygonBaseUrl"),

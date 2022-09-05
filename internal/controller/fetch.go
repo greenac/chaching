@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	genErr "github.com/greenac/chaching/internal/error"
+	"github.com/greenac/chaching/internal/logger"
 	model "github.com/greenac/chaching/internal/rest/polygon/models"
 	fetch "github.com/greenac/chaching/internal/service"
 	"strings"
@@ -34,6 +35,7 @@ type FetchController struct {
 	Start        time.Time
 	Delta        time.Duration
 	FetchService fetch.FetchService
+	Logger       logger.ILogger
 	Unmarshaler  func(data []byte, v any) error
 }
 
@@ -56,6 +58,7 @@ func (fc *FetchController) RunFetch(fp FetchParams) ([][]model.PolygonDataPoint,
 
 		go func(name string) {
 			defer wg.Done()
+			fc.Logger.Info().Msg("FetchController::RunFetch fetching " + name)
 			fc.FetchTargets(
 				FetchTargetParams{FetchParams: fp, Name: name, From: fc.Start, To: fc.Start.Add(fc.Delta)},
 				cErr,
@@ -69,12 +72,12 @@ func (fc *FetchController) RunFetch(fp FetchParams) ([][]model.PolygonDataPoint,
 			genErrors = append(genErrors, e)
 		}
 
-		fmt.Println("got error:", e)
+		fc.Logger.Error().Msg("FetchController::RunFetch failed with error: " + e.Error())
 	}
 
 	for dps := range cDataPoints {
 		dataPts = append(dataPts, dps)
-		fmt.Println("got data point:", dps)
+		fc.Logger.Info().Msg(fmt.Sprintf("FetchController::RunFetch got data: %+v", dataPts))
 	}
 
 	return dataPts, genErrors
