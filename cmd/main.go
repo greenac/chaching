@@ -8,22 +8,26 @@ import (
 	"github.com/greenac/chaching/internal/rest/models"
 	model "github.com/greenac/chaching/internal/rest/polygon/models"
 	fetch "github.com/greenac/chaching/internal/service"
+	"github.com/greenac/chaching/internal/utils"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
-	"io/ioutil"
+	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"time"
 )
 
 func main() {
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	l := zerolog.New(os.Stdout).With().Timestamp().Logger()
+	l := zerolog.New(os.Stdout).With().Logger()
 
 	l.Info().Msg("Running fetch...")
 
-	envVars := env.Env{BaseEnv: viper.New()}
+	envVars, err := env.NewEnv(".env", viper.New())
+	if err != nil {
+		l.Error().Msg("main:failed to read env file with error: " + err.Error())
+		panic(err)
+	}
+
 	fc := controller.FetchController{
 		Targets:     []string{"AAPL", "AMZN"},
 		Start:       time.Now().Add(-4 * 24 * time.Hour),
@@ -33,14 +37,14 @@ func main() {
 		FetchService: fetch.FetchService{
 			Url: envVars.GetString("PolygonBaseUrl"),
 			RestClient: &rest.Client{
-				BaseHeaders: &models.Headers{"Authorization": models.HeaderValue{envVars.GetString("PolygonApiKey")}},
+				BaseHeaders: &models.Headers{"Authorization": models.HeaderValue{"Bearer " + envVars.GetString("PolygonApiKey")}},
 				HttpClient:  &http.Client{Timeout: 30 * time.Second},
-				BodyReader:  ioutil.ReadAll,
+				BodyReader:  io.ReadAll,
 				GetRequest:  http.NewRequest,
 			},
-			PathJoiner: url.JoinPath,
+			PathJoiner: utils.JoinUrl,
 		},
 	}
 
-	fc.RunFetch(controller.FetchParams{TimespanMultiplier: 1, Limit: 1000, Timespan: model.PolygonAggregateTimespanMinute})
+	fc.RunFetch(controller.FetchParams{TimespanMultiplier: 1, Limit: 10, Timespan: model.PolygonAggregateTimespanMinute})
 }

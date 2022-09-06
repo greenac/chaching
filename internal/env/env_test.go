@@ -6,13 +6,16 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+var _ IBaseEnv = (*mockEnvBase)(nil)
+
 type mockEnvBase struct {
-	BoolVal   bool
-	IntVal    int
-	FloatVal  float64
-	StringVal string
-	IsSetVal  bool
-	Settings  map[string]interface{}
+	BoolVal     bool
+	IntVal      int
+	FloatVal    float64
+	StringVal   string
+	IsSetVal    bool
+	Settings    map[string]interface{}
+	ConfigError error
 }
 
 func (me mockEnvBase) GetBool(key string) bool {
@@ -38,6 +41,16 @@ func (me mockEnvBase) IsSet(key string) bool {
 func (me mockEnvBase) AllSettings() map[string]interface{} {
 	return me.Settings
 }
+
+func (me mockEnvBase) ReadInConfig() error {
+	return me.ConfigError
+}
+
+func (me mockEnvBase) SetConfigName(in string) {}
+func (me mockEnvBase) AddConfigPath(in string) {}
+func (me mockEnvBase) SetConfigType(in string) {}
+func (me mockEnvBase) SetConfigFile(in string) {}
+func (me mockEnvBase) AutomaticEnv()           {}
 
 func TestEnv_GetBool(t *testing.T) {
 	Convey("TestEnv_GetBool", t, func() {

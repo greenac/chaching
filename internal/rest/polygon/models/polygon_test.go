@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	url2 "net/url"
 	"testing"
 	"time"
 
@@ -22,6 +23,8 @@ func TestPolygonAggregateRequestParams_Url(t *testing.T) {
 			SortDirection: PolygonAggregateSortDirectionAsc,
 			Limit:         120,
 		}
+		uri, _ := url2.JoinPath("https://something", rp.Url())
+		fmt.Println("url is:", rp.Url(), "full url:", uri)
 		So(rp.Url(), ShouldEqual, url)
 	})
 }

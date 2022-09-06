@@ -12,7 +12,7 @@ type IFetchData interface {
 	Url() string
 }
 
-func NewFetchService(url string, rc models.IClient, joiner func(base string, elem ...string) (result string, err error)) *FetchService {
+func NewFetchService(url string, rc models.IClient, joiner func(base string, add string) (result string, err *genErr.GenError)) *FetchService {
 	return &FetchService{Url: url, RestClient: rc, PathJoiner: joiner}
 }
 
@@ -26,7 +26,7 @@ var _ IFetchService = (*FetchService)(nil)
 type FetchService struct {
 	Url        string
 	RestClient models.IClient
-	PathJoiner func(base string, elem ...string) (result string, err error)
+	PathJoiner func(base string, add string) (string, *genErr.GenError)
 }
 
 func (fc *FetchService) Fetch(params models.UrlParams) ([]byte, *genErr.GenError) {
@@ -39,9 +39,8 @@ func (fc *FetchService) Fetch(params models.UrlParams) ([]byte, *genErr.GenError
 }
 
 func (fc *FetchService) FetchWithFetchData(fetchData IFetchData) ([]byte, *genErr.GenError) {
-	uri, err := fc.PathJoiner(fc.Url, fetchData.Url())
-	if err != nil {
-		ge := genErr.GenError{}
+	uri, ge := fc.PathJoiner(fc.Url, fetchData.Url())
+	if ge != nil {
 		return []byte{}, ge.AddMsg("FetchService:FetchWithFetchData failed to join urls: " + fc.Url + " and " + fetchData.Url())
 	}
 

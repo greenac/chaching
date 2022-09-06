@@ -48,7 +48,7 @@ type PolygonDataPoint struct {
 	NumOfTxs            int     `json:"n"`  // number of transactions
 	OpenPrice           float64 `json:"o"`  // open price
 	StartTime           int64   `json:"t"`  // window start unix time stamp (millis)
-	Volume              int     `json:"v"`  // volume
+	Volume              float64 `json:"v"`  // volume
 	VolumeWeightedPrice float64 `json:"vw"` // volume weighted ave price
 }
 

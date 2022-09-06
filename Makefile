@@ -1,5 +1,9 @@
 .PHONY: run
 run:
+	GO111MODULE=on go run cmd/main.go 2>&1
+
+.PHONY: watch
+watch:
 	~/go/bin/reflex -r '\.go' -s -- sh -c "go run ./cmd/main.go"
 
 .PHONY: test

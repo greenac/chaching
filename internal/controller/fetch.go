@@ -44,13 +44,14 @@ func (fc *FetchController) RunFetch(fp FetchParams) ([][]model.PolygonDataPoint,
 	dataPts := [][]model.PolygonDataPoint{}
 
 	wg := sync.WaitGroup{}
-	cErr := make(chan *genErr.GenError)
-	cDataPoints := make(chan []model.PolygonDataPoint)
+	c := make(chan FetchTargetsRetVal)
 
 	go func() {
+		fc.Logger.Info().Msg("in go routine before wait group")
 		wg.Wait()
-		close(cErr)
-		close(cDataPoints)
+		fc.Logger.Info().Msg("in go routine after wait group")
+		close(c)
+		fc.Logger.Info().Msg("in go routine closed channels")
 	}()
 
 	for _, t := range fc.Targets {
@@ -58,32 +59,39 @@ func (fc *FetchController) RunFetch(fp FetchParams) ([][]model.PolygonDataPoint,
 
 		go func(name string) {
 			defer wg.Done()
-			fc.Logger.Info().Msg("FetchController::RunFetch fetching " + name)
-			fc.FetchTargets(
-				FetchTargetParams{FetchParams: fp, Name: name, From: fc.Start, To: fc.Start.Add(fc.Delta)},
-				cErr,
-				cDataPoints,
-			)
+			fc.Logger.Info().Msg("FetchController:RunFetch:fetching " + name)
+			fc.FetchTargets(FetchTargetParams{FetchParams: fp, Name: name, From: fc.Start, To: fc.Start.Add(fc.Delta)}, c)
+			fc.Logger.Info().Msg("in fetch go routine. should call wg.Done() for name: " + name)
 		}(t)
 	}
 
-	for e := range cErr {
-		if e != nil {
-			genErrors = append(genErrors, e)
+	fc.Logger.Info().Msg("for loop before channel")
+
+	for rVal := range c {
+		if rVal.Error != nil {
+			fc.Logger.Error().Msg(rVal.Error.Error())
+		} else {
+			dataPts = append(dataPts, rVal.DataPoints)
 		}
-
-		fc.Logger.Error().Msg("FetchController::RunFetch failed with error: " + e.Error())
 	}
 
-	for dps := range cDataPoints {
-		dataPts = append(dataPts, dps)
-		fc.Logger.Info().Msg(fmt.Sprintf("FetchController::RunFetch got data: %+v", dataPts))
+	for _, dps := range dataPts {
+		for _, dp := range dps {
+			fmt.Printf("%+v\n\n", dp)
+		}
 	}
+
+	fc.Logger.Info().Msg("all done!")
 
 	return dataPts, genErrors
 }
 
-func (fc *FetchController) FetchTargets(fp FetchTargetParams, cErr chan *genErr.GenError, cDataPoint chan []model.PolygonDataPoint) {
+type FetchTargetsRetVal struct {
+	DataPoints []model.PolygonDataPoint
+	Error      *genErr.GenError
+}
+
+func (fc *FetchController) FetchTargets(fp FetchTargetParams, c chan FetchTargetsRetVal) {
 	rps := model.PolygonAggregateRequestParams{
 		Name:          fp.Name,
 		Multiplier:    fp.TimespanMultiplier,
@@ -96,21 +104,29 @@ func (fc *FetchController) FetchTargets(fp FetchTargetParams, cErr chan *genErr.
 
 	body, ge := fc.FetchService.FetchWithFetchData(rps)
 	if ge != nil {
-		cErr <- ge
+		c <- FetchTargetsRetVal{Error: ge}
 		return
 	}
 
 	pr := model.PolygonAggregateResponse{}
 	err := fc.Unmarshaler(body, &pr)
 	if err != nil {
-		cErr <- &genErr.GenError{Messages: []string{"FetchController:FetchTargets failed to unmarshall with err: " + err.Error() + " for: " + fp.Name}}
+		c <- FetchTargetsRetVal{
+			Error: &genErr.GenError{Messages: []string{"FetchController:FetchTargets failed to unmarshall with err: " + err.Error() + " for: " + fp.Name}},
+		}
 		return
 	}
 
 	if strings.ToLower(pr.Status) != "ok" {
-		cErr <- &genErr.GenError{Messages: []string{"FetchController:FetchTargets failed for: " + fp.Name + " with status: " + pr.Status}}
+		c <- FetchTargetsRetVal{
+			Error: &genErr.GenError{Messages: []string{"FetchController:FetchTargets failed for: " + fp.Name + " with status: " + pr.Status}},
+		}
 		return
 	}
 
-	cDataPoint <- pr.DataPoints
+	fc.Logger.Info().Msg("FetchController:FetchTargets:got data points")
+
+	c <- FetchTargetsRetVal{DataPoints: pr.DataPoints}
+
+	fc.Logger.Info().Msg("FetchController:FetchTargets:sent data points on channel")
 }
