@@ -30,6 +30,11 @@ type FetchTarget struct {
 	Name string
 }
 
+type FetchTargetsRetVal struct {
+	DataPoints []model.PolygonDataPoint
+	Error      *genErr.GenError
+}
+
 type FetchController struct {
 	Targets      []string
 	Start        time.Time
@@ -47,11 +52,8 @@ func (fc *FetchController) RunFetch(fp FetchParams) ([][]model.PolygonDataPoint,
 	c := make(chan FetchTargetsRetVal)
 
 	go func() {
-		fc.Logger.Info().Msg("in go routine before wait group")
 		wg.Wait()
-		fc.Logger.Info().Msg("in go routine after wait group")
 		close(c)
-		fc.Logger.Info().Msg("in go routine closed channels")
 	}()
 
 	for _, t := range fc.Targets {
@@ -59,36 +61,29 @@ func (fc *FetchController) RunFetch(fp FetchParams) ([][]model.PolygonDataPoint,
 
 		go func(name string) {
 			defer wg.Done()
-			fc.Logger.Info().Msg("FetchController:RunFetch:fetching " + name)
 			fc.FetchTargets(FetchTargetParams{FetchParams: fp, Name: name, From: fc.Start, To: fc.Start.Add(fc.Delta)}, c)
-			fc.Logger.Info().Msg("in fetch go routine. should call wg.Done() for name: " + name)
 		}(t)
 	}
 
 	fc.Logger.Info().Msg("for loop before channel")
 
-	for rVal := range c {
-		if rVal.Error != nil {
-			fc.Logger.Error().Msg(rVal.Error.Error())
+	for rv := range c {
+		if rv.Error != nil {
+			fc.Logger.Error().Msg(rv.Error.Error())
 		} else {
-			dataPts = append(dataPts, rVal.DataPoints)
+			dataPts = append(dataPts, rv.DataPoints)
 		}
 	}
 
 	for _, dps := range dataPts {
 		for _, dp := range dps {
-			fmt.Printf("%+v\n\n", dp)
+			fmt.Printf("%+v\n", dp)
 		}
 	}
 
 	fc.Logger.Info().Msg("all done!")
 
 	return dataPts, genErrors
-}
-
-type FetchTargetsRetVal struct {
-	DataPoints []model.PolygonDataPoint
-	Error      *genErr.GenError
 }
 
 func (fc *FetchController) FetchTargets(fp FetchTargetParams, c chan FetchTargetsRetVal) {
@@ -124,9 +119,5 @@ func (fc *FetchController) FetchTargets(fp FetchTargetParams, c chan FetchTarget
 		return
 	}
 
-	fc.Logger.Info().Msg("FetchController:FetchTargets:got data points")
-
 	c <- FetchTargetsRetVal{DataPoints: pr.DataPoints}
-
-	fc.Logger.Info().Msg("FetchController:FetchTargets:sent data points on channel")
 }
