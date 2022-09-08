@@ -28,14 +28,14 @@ type ClientMock struct {
 	PostUrlError     *genErr.GenError
 }
 
-func (cm *ClientMock) Get(url string, headers *models.Headers, params models.UrlParams) (models.Response, *genErr.GenError) {
+func (cm *ClientMock) Get(url string, headers *models.Headers, params models.UrlParams) (models.Response, genErr.IGenError) {
 	return cm.GetResponse, cm.GetError
 }
 
-func (cm *ClientMock) PostBody(url string, headers *models.Headers, body []byte) (models.Response, *genErr.GenError) {
+func (cm *ClientMock) PostBody(url string, headers *models.Headers, body []byte) (models.Response, genErr.IGenError) {
 	return cm.PostBodyResponse, cm.PostBodyError
 }
 
-func (cm *ClientMock) PostUrl(url string, headers *models.Headers, params models.UrlParams) (models.Response, *genErr.GenError) {
+func (cm *ClientMock) PostUrl(url string, headers *models.Headers, params models.UrlParams) (models.Response, genErr.IGenError) {
 	return cm.PostUrlResponse, cm.PostUrlError
 }

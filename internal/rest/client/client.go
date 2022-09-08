@@ -17,7 +17,7 @@ type Client struct {
 	GetRequest  func(method, url string, body io.Reader) (*http.Request, error)
 }
 
-func (c *Client) Get(url string, headers *models.Headers, params models.UrlParams) (models.Response, *genErr.GenError) {
+func (c *Client) Get(url string, headers *models.Headers, params models.UrlParams) (models.Response, genErr.IGenError) {
 	req, err := c.GetRequest("GET", url, nil)
 	if err != nil {
 		ge := genErr.GenError{}
@@ -27,7 +27,7 @@ func (c *Client) Get(url string, headers *models.Headers, params models.UrlParam
 	return c.makeRequest(req, c.makeHeaders(headers))
 }
 
-func (c *Client) PostBody(url string, headers *models.Headers, body []byte) (models.Response, *genErr.GenError) {
+func (c *Client) PostBody(url string, headers *models.Headers, body []byte) (models.Response, genErr.IGenError) {
 	req, err := c.GetRequest("POST", url, bytes.NewReader(body))
 	if err != nil {
 		ge := genErr.GenError{}
@@ -37,7 +37,7 @@ func (c *Client) PostBody(url string, headers *models.Headers, body []byte) (mod
 	return c.makeRequest(req, c.makeHeaders(headers))
 }
 
-func (c *Client) PostUrl(url string, headers *models.Headers, params models.UrlParams) (models.Response, *genErr.GenError) {
+func (c *Client) PostUrl(url string, headers *models.Headers, params models.UrlParams) (models.Response, genErr.IGenError) {
 	req, err := c.GetRequest("POST", url, nil)
 	if err != nil {
 		ge := genErr.GenError{}
@@ -65,7 +65,7 @@ func (c *Client) makeHeaders(headers *models.Headers) map[string]string {
 	return reqHeaders
 }
 
-func (c *Client) makeRequest(req *http.Request, headers map[string]string) (models.Response, *genErr.GenError) {
+func (c *Client) makeRequest(req *http.Request, headers map[string]string) (models.Response, genErr.IGenError) {
 	for k, h := range headers {
 		req.Header.Add(k, h)
 	}

@@ -59,7 +59,7 @@ type IHttpClient interface {
 }
 
 type IClient interface {
-	Get(url string, headers *Headers, params UrlParams) (Response, *genErr.GenError)
-	PostBody(url string, headers *Headers, body []byte) (Response, *genErr.GenError)
-	PostUrl(url string, headers *Headers, params UrlParams) (Response, *genErr.GenError)
+	Get(url string, headers *Headers, params UrlParams) (Response, genErr.IGenError)
+	PostBody(url string, headers *Headers, body []byte) (Response, genErr.IGenError)
+	PostUrl(url string, headers *Headers, params UrlParams) (Response, genErr.IGenError)
 }

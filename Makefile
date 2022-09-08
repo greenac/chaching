@@ -2,6 +2,14 @@
 run:
 	GO111MODULE=on go run cmd/fetch/main.go 2>&1
 
+.PHONY: createdb
+createdb:
+	go run cmd/createdb/main.go
+
+.PHONY: deletedb
+deletedb:
+	go run cmd/deletedb/main.go
+
 .PHONY: watch
 watch:
 	~/go/bin/reflex -r '\.go' -s -- sh -c "go run ./cmd/fetch/main.go"

@@ -4,7 +4,7 @@ import (
 	genErr "github.com/greenac/chaching/internal/error"
 )
 
-func JoinUrl(base string, add string) (string, *genErr.GenError) {
+func JoinUrl(base string, add string) (string, genErr.IGenError) {
 	if len(base) == 0 {
 		ge := genErr.GenError{}
 		return "", ge.AddMsg("base url can not be empty string")

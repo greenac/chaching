@@ -4,6 +4,14 @@ import (
 	"github.com/spf13/viper"
 )
 
+type GoEnv string
+
+const (
+	GoEnvLocal GoEnv = "local"
+	GoEnvDev   GoEnv = "dev"
+	GoEnvProd  GoEnv = "prod"
+)
+
 type IBaseEnv interface {
 	GetBool(key string) bool
 	GetFloat64(key string) float64

@@ -32,7 +32,7 @@ type FetchTarget struct {
 
 type FetchTargetsRetVal struct {
 	DataPoints []model.PolygonDataPoint
-	Error      *genErr.GenError
+	Error      genErr.IGenError
 }
 
 type FetchController struct {
@@ -44,8 +44,8 @@ type FetchController struct {
 	Unmarshaler  func(data []byte, v any) error
 }
 
-func (fc *FetchController) RunFetch(fp FetchParams) ([][]model.PolygonDataPoint, []*genErr.GenError) {
-	genErrors := []*genErr.GenError{}
+func (fc *FetchController) RunFetch(fp FetchParams) ([][]model.PolygonDataPoint, []genErr.IGenError) {
+	genErrors := []genErr.IGenError{}
 	dataPts := [][]model.PolygonDataPoint{}
 
 	wg := sync.WaitGroup{}

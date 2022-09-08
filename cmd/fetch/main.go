@@ -18,13 +18,13 @@ import (
 )
 
 func main() {
-	l := zerolog.New(os.Stdout).With().Logger()
+	logger := zerolog.New(os.Stdout).With().Logger()
 
-	l.Info().Msg("Running fetch...")
+	logger.Info().Msg("Running fetch...")
 
 	envVars, err := env.NewEnv(".env", viper.New())
 	if err != nil {
-		l.Error().Msg("main:failed to read env file with error: " + err.Error())
+		logger.Error().Msg("main:failed to read env file with error: " + err.Error())
 		panic(err)
 	}
 
@@ -32,7 +32,7 @@ func main() {
 		Targets:     []string{"AAPL", "AMZN"},
 		Start:       time.Now().Add(-4 * 24 * time.Hour),
 		Delta:       1 * 24 * time.Hour,
-		Logger:      &l,
+		Logger:      &logger,
 		Unmarshaler: json.Unmarshal,
 		FetchService: fetch.FetchService{
 			Url: envVars.GetString("PolygonBaseUrl"),

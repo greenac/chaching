@@ -12,13 +12,13 @@ type IFetchData interface {
 	Url() string
 }
 
-func NewFetchService(url string, rc models.IClient, joiner func(base string, add string) (result string, err *genErr.GenError)) *FetchService {
+func NewFetchService(url string, rc models.IClient, joiner func(base string, add string) (result string, err genErr.IGenError)) *FetchService {
 	return &FetchService{Url: url, RestClient: rc, PathJoiner: joiner}
 }
 
 type IFetchService interface {
-	Fetch(params models.UrlParams) ([]byte, *genErr.GenError)
-	FetchWithFetchData(fetchData IFetchData) ([]byte, *genErr.GenError)
+	Fetch(params models.UrlParams) ([]byte, genErr.IGenError)
+	FetchWithFetchData(fetchData IFetchData) ([]byte, genErr.IGenError)
 }
 
 var _ IFetchService = (*FetchService)(nil)
@@ -26,10 +26,10 @@ var _ IFetchService = (*FetchService)(nil)
 type FetchService struct {
 	Url        string
 	RestClient models.IClient
-	PathJoiner func(base string, add string) (string, *genErr.GenError)
+	PathJoiner func(base string, add string) (string, genErr.IGenError)
 }
 
-func (fc *FetchService) Fetch(params models.UrlParams) ([]byte, *genErr.GenError) {
+func (fc *FetchService) Fetch(params models.UrlParams) ([]byte, genErr.IGenError) {
 	resp, err := fc.RestClient.Get(fc.Url, nil, params)
 	if err != nil {
 		return []byte{}, err.AddMsg("FetchService:Fetch:failed to get")
@@ -38,7 +38,7 @@ func (fc *FetchService) Fetch(params models.UrlParams) ([]byte, *genErr.GenError
 	return fc.handleResponse(resp)
 }
 
-func (fc *FetchService) FetchWithFetchData(fetchData IFetchData) ([]byte, *genErr.GenError) {
+func (fc *FetchService) FetchWithFetchData(fetchData IFetchData) ([]byte, genErr.IGenError) {
 	uri, ge := fc.PathJoiner(fc.Url, fetchData.Url())
 	if ge != nil {
 		return []byte{}, ge.AddMsg("FetchService:FetchWithFetchData failed to join urls: " + fc.Url + " and " + fetchData.Url())
@@ -52,7 +52,7 @@ func (fc *FetchService) FetchWithFetchData(fetchData IFetchData) ([]byte, *genEr
 	return fc.handleResponse(resp)
 }
 
-func (fc *FetchService) handleResponse(resp models.Response) ([]byte, *genErr.GenError) {
+func (fc *FetchService) handleResponse(resp models.Response) ([]byte, genErr.IGenError) {
 	if !utils.SliceContains([]int{http.StatusOK, http.StatusCreated, http.StatusAccepted}, resp.StatusCode) {
 		ge := genErr.GenError{}
 		return []byte{}, ge.AddMsg(fmt.Sprintf("FetchService:handleResponse failed with code: %d and status %s for url: %s", resp.StatusCode, resp.Status, fc.Url))

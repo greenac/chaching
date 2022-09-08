@@ -4,6 +4,11 @@ import (
 	"strings"
 )
 
+type IGenError interface {
+	error
+	AddMsg(msg string) IGenError
+}
+
 type GenError struct {
 	Messages []string
 }
@@ -21,7 +26,7 @@ func (e *GenError) Error() string {
 	return bldr.String()
 }
 
-func (e *GenError) AddMsg(msg string) *GenError {
+func (e *GenError) AddMsg(msg string) IGenError {
 	e.Messages = append(e.Messages, msg)
 	return e
 }

@@ -77,7 +77,7 @@ func TestFetchService_FetchWithFetchData(t *testing.T) {
 			expUrl := fmt.Sprintf("rabbits/range/1/minute/%d/%d?adjusted=false&sort=asc&limit=120", from.UnixMilli(), to.UnixMilli())
 			body := []byte("body bytes")
 			c := mocks.ClientMock{GetResponse: models.Response{Status: "", StatusCode: http.StatusOK, Body: body}}
-			fs := NewFetchService(uri, &c, func(base string, add string) (result string, ge *genErr.GenError) {
+			fs := NewFetchService(uri, &c, func(base string, add string) (result string, ge genErr.IGenError) {
 				return "", &e
 			})
 			_, err := fs.FetchWithFetchData(fd)
