@@ -1,14 +1,14 @@
-.PHONY: run
-run:
-	GO111MODULE=on go run cmd/fetch/main.go 2>&1
+.PHONY: fetch
+fetch:
+	GoEnv=local GO111MODULE=on go run cmd/fetch/main.go 2>&1
 
 .PHONY: createdb
 createdb:
-	go run cmd/createdb/main.go
+	GoEnv=local GO111MODULE=on go run cmd/createdb/main.go
 
 .PHONY: deletedb
 deletedb:
-	go run cmd/deletedb/main.go
+	GoEnv=local GO111MODULE=on go run cmd/deletedb/main.go
 
 .PHONY: watch
 watch:

@@ -12,7 +12,13 @@ import (
 )
 
 func main() {
-	logger := zerolog.New(os.Stdout).With().Logger().Output(zerolog.ConsoleWriter{Out: os.Stdout})
+	var logger zerolog.Logger
+	if os.Getenv("GoEnv") == string(env.GoEnvLocal) {
+		logger = zerolog.New(os.Stdout).With().Logger().Output(zerolog.ConsoleWriter{Out: os.Stdout})
+	} else {
+		logger = zerolog.New(os.Stdout).With().Logger()
+	}
+
 	logger.Info().Msg("Running create database...")
 
 	envVars, err := env.NewEnv(".env", viper.New())

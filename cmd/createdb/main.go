@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/greenac/chaching/internal/consts"
 	"github.com/greenac/chaching/internal/database/helpers"
 	"github.com/greenac/chaching/internal/env"
 	"github.com/rs/zerolog"
@@ -13,7 +12,13 @@ import (
 )
 
 func main() {
-	logger := zerolog.New(os.Stdout).With().Logger().Output(zerolog.ConsoleWriter{Out: os.Stdout})
+	var logger zerolog.Logger
+	if os.Getenv("GoEnv") == string(env.GoEnvLocal) {
+		logger = zerolog.New(os.Stdout).With().Logger().Output(zerolog.ConsoleWriter{Out: os.Stdout})
+	} else {
+		logger = zerolog.New(os.Stdout).With().Logger()
+	}
+
 	logger.Info().Msg("Running create database...")
 
 	envVars, err := env.NewEnv(".env", viper.New())
@@ -57,5 +62,5 @@ func main() {
 		panic(err)
 	}
 
-	logger.Info().Msg("main:created dynamo table: " + consts.ServiceName)
+	logger.Info().Msg("main:created dynamo table: " + config.MainTable)
 }

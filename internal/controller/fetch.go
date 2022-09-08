@@ -12,6 +12,7 @@ import (
 )
 
 const SortDirection = model.PolygonAggregateSortDirectionAsc
+const ConcurrencyCount = 5
 
 type FetchParams struct {
 	TimespanMultiplier int
@@ -38,13 +39,46 @@ type FetchTargetsRetVal struct {
 type FetchController struct {
 	Targets      []string
 	Start        time.Time
-	Delta        time.Duration
+	End          time.Time
 	FetchService fetch.FetchService
 	Logger       logger.ILogger
 	Unmarshaler  func(data []byte, v any) error
 }
 
 func (fc *FetchController) RunFetch(fp FetchParams) ([][]model.PolygonDataPoint, []genErr.IGenError) {
+	genErrors := []genErr.IGenError{}
+	dataPts := [][]model.PolygonDataPoint{}
+	wg := sync.WaitGroup{}
+
+	start := fc.Start
+	partitions := int(fc.End.Sub(fc.Start).Hours())
+	for i := 0; i < partitions; i += ConcurrencyCount {
+		for j := i; j < i+ConcurrencyCount && j < partitions; j += 1 {
+			wg.Add(1)
+
+			go func(from time.Time) {
+				defer wg.Done()
+				dps, errs := fc.FetchGroup(fp, from, from.Add(time.Hour))
+				if errs != nil {
+					genErrors = append(genErrors, errs...)
+				}
+				dataPts = append(dataPts, dps...)
+			}(start)
+
+			start = start.Add(time.Hour)
+		}
+	}
+
+	fmt.Println("FetchController:RunFetch:starting wait group")
+
+	wg.Wait()
+
+	fmt.Println("FetchController:RunFetch:leaving wait group")
+
+	return dataPts, genErrors
+}
+
+func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Time) ([][]model.PolygonDataPoint, []genErr.IGenError) {
 	genErrors := []genErr.IGenError{}
 	dataPts := [][]model.PolygonDataPoint{}
 
@@ -61,11 +95,10 @@ func (fc *FetchController) RunFetch(fp FetchParams) ([][]model.PolygonDataPoint,
 
 		go func(name string) {
 			defer wg.Done()
-			fc.FetchTargets(FetchTargetParams{FetchParams: fp, Name: name, From: fc.Start, To: fc.Start.Add(fc.Delta)}, c)
+			fmt.Println("fetching for:", name, "from:", from.Format(time.RFC3339), "to:", to.Format(time.RFC3339))
+			fc.FetchTargets(FetchTargetParams{FetchParams: fp, Name: name, From: from, To: to}, c)
 		}(t)
 	}
-
-	fc.Logger.Info().Msg("for loop before channel")
 
 	for rv := range c {
 		if rv.Error != nil {
@@ -75,11 +108,11 @@ func (fc *FetchController) RunFetch(fp FetchParams) ([][]model.PolygonDataPoint,
 		}
 	}
 
-	for _, dps := range dataPts {
-		for _, dp := range dps {
-			fmt.Printf("%+v\n", dp)
-		}
-	}
+	//for _, dps := range dataPts {
+	//	for _, dp := range dps {
+	//		fmt.Printf("%+v\n", dp)
+	//	}
+	//}
 
 	fc.Logger.Info().Msg("all done!")
 
