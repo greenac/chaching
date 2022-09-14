@@ -3,10 +3,21 @@ package models
 import (
 	"context"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/greenac/chaching/internal/env"
 	"time"
 )
 
-type IClient interface {
+type DynamoConfig struct {
+	MainTable string
+	Env       env.GoEnv
+	Region    string
+	Url       string
+	Profile   string
+	Index1    string
+	Index2    string
+}
+
+type IDatabaseClient interface {
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 	Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
 	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
@@ -14,6 +25,7 @@ type IClient interface {
 	UpdateItem(ctx context.Context, params *dynamodb.UpdateItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error)
 	CreateTable(ctx context.Context, params *dynamodb.CreateTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.CreateTableOutput, error)
 	DeleteTable(ctx context.Context, params *dynamodb.DeleteTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteTableOutput, error)
+	BatchWriteItem(ctx context.Context, params *dynamodb.BatchWriteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.BatchWriteItemOutput, error)
 }
 
 type ModelType string
@@ -63,10 +75,8 @@ func GetModelKeys(mt ModelType) ModelKeys {
 		}
 	case ModelTypeDataPoint:
 		mk = ModelKeys{
-			Pk:   "dataPoint#",
-			Sk:   "companyName#",
-			Gpk1: "companyName#",
-			Gsk1: "createdAt#",
+			Pk: "companyName#",
+			Sk: "timeStamp#",
 		}
 	case ModelTypeTransaction:
 		mk = ModelKeys{

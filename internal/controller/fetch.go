@@ -1,7 +1,10 @@
 package controller
 
 import (
+	"context"
 	"fmt"
+	"github.com/greenac/chaching/internal/database/models"
+	"github.com/greenac/chaching/internal/database/service"
 	genErr "github.com/greenac/chaching/internal/error"
 	"github.com/greenac/chaching/internal/logger"
 	model "github.com/greenac/chaching/internal/rest/polygon/models"
@@ -32,55 +35,62 @@ type FetchTarget struct {
 }
 
 type FetchTargetsRetVal struct {
-	DataPoints []model.PolygonDataPoint
+	DataPoints []models.DataPoint
 	Error      genErr.IGenError
 }
 
 type FetchController struct {
-	Targets      []string
-	Start        time.Time
-	End          time.Time
-	FetchService fetch.FetchService
-	Logger       logger.ILogger
-	Unmarshaler  func(data []byte, v any) error
+	Targets         []string
+	StartOfDay      time.Time
+	EndOfDay        time.Time
+	StartDate       time.Time
+	EndDate         time.Time
+	PartitionValue  time.Duration
+	FetchService    fetch.FetchService
+	DatabaseService service.DatabaseService
+	Logger          logger.ILogger
+	Unmarshaler     func(data []byte, v any) error
 }
 
-func (fc *FetchController) RunFetch(fp FetchParams) ([][]model.PolygonDataPoint, []genErr.IGenError) {
-	genErrors := []genErr.IGenError{}
-	dataPts := [][]model.PolygonDataPoint{}
-	wg := sync.WaitGroup{}
+func (fc *FetchController) RunFetch(fp FetchParams) []genErr.IGenError {
+	const logCount = 200
+	genErrs := []genErr.IGenError{}
 
-	start := fc.Start
-	partitions := int(fc.End.Sub(fc.Start).Hours())
-	for i := 0; i < partitions; i += ConcurrencyCount {
-		for j := i; j < i+ConcurrencyCount && j < partitions; j += 1 {
+	times := fc.partitionTimes()
+	fc.Logger.Info().Msg(fmt.Sprintf("FetchController:RunFetch:fetch # of times: %d", len(times)))
+	for i := 0; i < len(times)-1; i += ConcurrencyCount {
+		wg := sync.WaitGroup{}
+
+		for j := i; j < i+ConcurrencyCount && j < len(times)-1; j += 1 {
+			if j%logCount == 0 {
+				fc.Logger.Info().Msg(fmt.Sprintf("FetchController:RunFetch:fetching from: %s to: %s", times[j].Format(time.RFC3339), times[j+1].Format(time.RFC3339)))
+			}
+
 			wg.Add(1)
 
-			go func(from time.Time) {
+			go func(from time.Time, to time.Time) {
 				defer wg.Done()
-				dps, errs := fc.FetchGroup(fp, from, from.Add(time.Hour))
+				dps, errs := fc.FetchGroup(fp, from, to)
 				if errs != nil {
-					genErrors = append(genErrors, errs...)
+					genErrs = append(genErrs, errs...)
 				}
-				dataPts = append(dataPts, dps...)
-			}(start)
 
-			start = start.Add(time.Hour)
+				gErrs := fc.DatabaseService.SaveDataPoints(context.Background(), dps)
+				if gErrs != nil {
+					genErrs = append(genErrs, *gErrs...)
+				}
+			}(times[j], times[j+1])
 		}
+
+		wg.Wait()
 	}
 
-	fmt.Println("FetchController:RunFetch:starting wait group")
-
-	wg.Wait()
-
-	fmt.Println("FetchController:RunFetch:leaving wait group")
-
-	return dataPts, genErrors
+	return genErrs
 }
 
-func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Time) ([][]model.PolygonDataPoint, []genErr.IGenError) {
+func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Time) ([]models.DataPoint, []genErr.IGenError) {
 	genErrors := []genErr.IGenError{}
-	dataPts := [][]model.PolygonDataPoint{}
+	dataPts := []models.DataPoint{}
 
 	wg := sync.WaitGroup{}
 	c := make(chan FetchTargetsRetVal)
@@ -94,8 +104,13 @@ func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Ti
 		wg.Add(1)
 
 		go func(name string) {
+			defer func() {
+				if r := recover(); r != nil {
+					fc.Logger.Error().Msgf("FetchController:FetchGroup:panic recovered for name: %s, fetch params: %+v, from: %s, to: %s", name, fp, from.Format(time.RFC3339), to.Format(time.RFC3339))
+				}
+			}()
+
 			defer wg.Done()
-			fmt.Println("fetching for:", name, "from:", from.Format(time.RFC3339), "to:", to.Format(time.RFC3339))
 			fc.FetchTargets(FetchTargetParams{FetchParams: fp, Name: name, From: from, To: to}, c)
 		}(t)
 	}
@@ -104,17 +119,9 @@ func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Ti
 		if rv.Error != nil {
 			fc.Logger.Error().Msg(rv.Error.Error())
 		} else {
-			dataPts = append(dataPts, rv.DataPoints)
+			dataPts = append(dataPts, rv.DataPoints...)
 		}
 	}
-
-	//for _, dps := range dataPts {
-	//	for _, dp := range dps {
-	//		fmt.Printf("%+v\n", dp)
-	//	}
-	//}
-
-	fc.Logger.Info().Msg("all done!")
 
 	return dataPts, genErrors
 }
@@ -140,17 +147,42 @@ func (fc *FetchController) FetchTargets(fp FetchTargetParams, c chan FetchTarget
 	err := fc.Unmarshaler(body, &pr)
 	if err != nil {
 		c <- FetchTargetsRetVal{
-			Error: &genErr.GenError{Messages: []string{"FetchController:FetchTargets failed to unmarshall with err: " + err.Error() + " for: " + fp.Name}},
+			Error: &genErr.GenError{Messages: []string{"FetchController:FetchTargets:failed to unmarshall with err: " + err.Error() + " for: " + fp.Name}},
 		}
 		return
 	}
 
 	if strings.ToLower(pr.Status) != "ok" {
 		c <- FetchTargetsRetVal{
-			Error: &genErr.GenError{Messages: []string{"FetchController:FetchTargets failed for: " + fp.Name + " with status: " + pr.Status}},
+			Error: &genErr.GenError{Messages: []string{"FetchController:FetchTargets:failed for: " + fp.Name + " with status: " + pr.Status + " at time: " + fp.From.Format(time.RFC3339)}},
 		}
 		return
 	}
 
-	c <- FetchTargetsRetVal{DataPoints: pr.DataPoints}
+	dps := make([]models.DataPoint, len(pr.DataPoints))
+	for i, dp := range pr.DataPoints {
+		dps[i] = models.DataPoint{Name: fp.Name, PolygonDataPoint: dp}
+	}
+
+	c <- FetchTargetsRetVal{DataPoints: dps}
+}
+
+func (fc *FetchController) partitionTimes() []time.Time {
+	times := []time.Time{}
+	t := fc.StartDate
+	startOfDay := fc.StartDate
+	endOfDay := fc.EndOfDay
+	for t.Before(fc.EndDate) || t.Equal(fc.EndDate) {
+		if t.After(endOfDay) || t.Weekday() == time.Saturday || t.Weekday() == time.Sunday {
+			startOfDay = startOfDay.Add(24 * time.Hour)
+			endOfDay = endOfDay.Add(24 * time.Hour)
+			t = startOfDay
+			continue
+		}
+
+		times = append(times, t)
+		t = t.Add(fc.PartitionValue)
+	}
+
+	return times
 }

@@ -7,23 +7,25 @@ import (
 )
 
 type ClientMock struct {
-	PutItemOutput     dynamodb.PutItemOutput
-	PutItemError      error
-	QueryOutput       dynamodb.QueryOutput
-	QueryError        error
-	GetItemOutput     dynamodb.GetItemOutput
-	GetItemError      error
-	DeleteItemOutput  dynamodb.DeleteItemOutput
-	DeleteItemError   error
-	UpdateItemOutput  dynamodb.UpdateItemOutput
-	UpdateItemError   error
-	CreateTableOutput dynamodb.CreateTableOutput
-	CreateTableError  error
-	DeleteTableOutput dynamodb.DeleteTableOutput
-	DeleteTableError  error
+	PutItemOutput        dynamodb.PutItemOutput
+	PutItemError         error
+	QueryOutput          dynamodb.QueryOutput
+	QueryError           error
+	GetItemOutput        dynamodb.GetItemOutput
+	GetItemError         error
+	DeleteItemOutput     dynamodb.DeleteItemOutput
+	DeleteItemError      error
+	UpdateItemOutput     dynamodb.UpdateItemOutput
+	UpdateItemError      error
+	CreateTableOutput    dynamodb.CreateTableOutput
+	CreateTableError     error
+	DeleteTableOutput    dynamodb.DeleteTableOutput
+	DeleteTableError     error
+	BatchWriteItemOutput dynamodb.BatchWriteItemOutput
+	BatchWriteItemError  error
 }
 
-var _ (models.IClient) = (*ClientMock)(nil)
+var _ models.IDatabaseClient = (*ClientMock)(nil)
 
 func (c ClientMock) PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
 	return &c.PutItemOutput, c.PutItemError
@@ -51,4 +53,8 @@ func (c ClientMock) CreateTable(ctx context.Context, params *dynamodb.CreateTabl
 
 func (c ClientMock) DeleteTable(ctx context.Context, params *dynamodb.DeleteTableInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteTableOutput, error) {
 	return &c.DeleteTableOutput, c.DeleteTableError
+}
+
+func (c ClientMock) BatchWriteItem(ctx context.Context, params *dynamodb.BatchWriteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.BatchWriteItemOutput, error) {
+	return &c.BatchWriteItemOutput, c.BatchWriteItemError
 }

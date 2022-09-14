@@ -42,14 +42,14 @@ func (pr PolygonAggregateRequestParams) Url() string {
 }
 
 type PolygonDataPoint struct {
-	ClosePrice          float64 `json:"c"`  // close price
-	HighestPrice        float64 `json:"h"`  // highest price
-	LowestPrice         float64 `json:"l"`  // lowest price
-	NumOfTxs            int     `json:"n"`  // number of transactions
-	OpenPrice           float64 `json:"o"`  // open price
-	StartTime           int64   `json:"t"`  // window start unix time stamp (millis)
-	Volume              float64 `json:"v"`  // volume
-	VolumeWeightedPrice float64 `json:"vw"` // volume weighted ave price
+	ClosePrice          float64 `json:"c" dynamodbav:"closePrice"`           // close price
+	HighestPrice        float64 `json:"h" dynamodbav:"highestPrice"`         // highest price
+	LowestPrice         float64 `json:"l" dynamodbav:"lowestPrice"`          // lowest price
+	NumOfTxs            int     `json:"n" dynamodbav:"numOfTxs"`             // number of transactions
+	OpenPrice           float64 `json:"o" dynamodbav:"openPrice"`            // open price
+	StartTime           int64   `json:"t" dynamodbav:"startTime"`            // window start unix time stamp (millis)
+	Volume              float64 `json:"v" dynamodbav:"volume"`               // volume
+	VolumeWeightedPrice float64 `json:"vw" dynamodbav:"volumeWeightedPrice"` // volume weighted ave price
 }
 
 type PolygonAggregateResponse struct {

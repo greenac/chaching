@@ -20,7 +20,7 @@ func TestCreateTable(t *testing.T) {
 		Convey("TestCreateTable should fail with client error", func() {
 			e := errors.New("oak and walnut")
 			err := CreateTable(context.Background(), mocks.ClientMock{CreateTableError: e})
-			So(err, ShouldResemble, &genErr.GenError{Messages: []string{"CreateTable::Failed to create table with error: " + e.Error()}})
+			So(err, ShouldResemble, &genErr.GenError{Messages: []string{"CreateTable:Failed to create table with error: " + e.Error()}})
 		})
 	})
 }
@@ -35,7 +35,7 @@ func TestDeleteTable(t *testing.T) {
 		Convey("TestDeleteTable should fail with client error", func() {
 			e := errors.New("oak and walnut")
 			err := DeleteTable(context.Background(), mocks.ClientMock{DeleteTableError: e}, "table")
-			So(err, ShouldResemble, &genErr.GenError{Messages: []string{"DeleteTable::Failed to delete table with error: " + e.Error()}})
+			So(err, ShouldResemble, &genErr.GenError{Messages: []string{"DeleteTable:Failed to delete table with error: " + e.Error()}})
 		})
 	})
 }

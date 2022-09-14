@@ -5,6 +5,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/greenac/chaching/internal/database/helpers"
+	"github.com/greenac/chaching/internal/database/models"
 	"github.com/greenac/chaching/internal/env"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
@@ -27,7 +28,7 @@ func main() {
 		panic(err)
 	}
 
-	config := helpers.DynamoConfig{
+	config := models.DynamoConfig{
 		MainTable: envVars.GetString("DynamoMainTableName"),
 		Env:       env.GoEnv(envVars.GetString("GoEnv")),
 		Region:    envVars.GetString("AwsRegion"),

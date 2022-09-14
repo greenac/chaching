@@ -13,27 +13,7 @@ import (
 
 const DatabaseKeySeparator = "="
 
-type PersistenceManager interface {
-	GetKeys() models.ModelKeys
-}
-
-type DynamoConfig struct {
-	MainTable string
-	Env       env.GoEnv
-	Region    string
-	Url       string
-	Profile   string
-	Index1    string
-	Index2    string
-}
-
-type DynamoPersistenceManager struct {
-	Client *dynamodb.Client
-	Ctx    context.Context
-	Config DynamoConfig
-}
-
-func DynamoClient(ctx context.Context, config DynamoConfig) (*dynamodb.Client, genErr.IGenError) {
+func DynamoClient(ctx context.Context, config models.DynamoConfig) (models.IDatabaseClient, genErr.IGenError) {
 	var cfg aws.Config
 	var err error
 

@@ -10,6 +10,9 @@ createdb:
 deletedb:
 	GoEnv=local GO111MODULE=on go run cmd/deletedb/main.go
 
+.PHONY: reset
+reset: deletedb createdb fetch
+
 .PHONY: watch
 watch:
 	~/go/bin/reflex -r '\.go' -s -- sh -c "go run ./cmd/fetch/main.go"
