@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/greenac/chaching/internal/consts"
 	"github.com/greenac/chaching/internal/controller"
 	"github.com/greenac/chaching/internal/database/helpers"
 	"github.com/greenac/chaching/internal/database/managers"
@@ -13,7 +14,7 @@ import (
 	rest "github.com/greenac/chaching/internal/rest/client"
 	"github.com/greenac/chaching/internal/rest/models"
 	model "github.com/greenac/chaching/internal/rest/polygon/models"
-	fetch "github.com/greenac/chaching/internal/service"
+	"github.com/greenac/chaching/internal/service/fetch"
 	"github.com/greenac/chaching/internal/utils"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
@@ -74,14 +75,13 @@ func main() {
 	}
 
 	fc := controller.FetchController{
-		Targets:        []string{"AAPL", "AMZN"},
+		Targets:        []string{consts.Apple, consts.Amazon},
 		StartDate:      start,
 		EndDate:        end,
 		StartOfDay:     start,
 		EndOfDay:       endOfDay,
 		PartitionValue: time.Minute,
 		DatabaseService: service.DatabaseService{
-			Client: client,
 			DataPointPM: &managers.DataPointPersistenceManager{DynamoPersistenceManager: &managers.DynamoPersistenceManager{
 				Client:         client,
 				Ctx:            context.Background(),

@@ -16,14 +16,18 @@ import (
 type IDataPointPersistenceManager interface {
 	PersistenceManager
 	SaveNewDataPoints(ctx context.Context, dps []models.DataPoint) *[]genErr.IGenError
-	GetDataPoints(ctx context.Context, name string) ([]models.DataPoint, genErr.IGenError)
+	GetDataPointsInTimeRange(ctx context.Context, name string, startDate time.Time, endDate time.Time) ([]models.DataPoint, genErr.IGenError)
 }
+
+func NewDataPointPersistenceManager(dynamoManager *DynamoPersistenceManager) IDataPointPersistenceManager {
+	return &DataPointPersistenceManager{DynamoPersistenceManager: dynamoManager}
+}
+
+var _ IDataPointPersistenceManager = (*DataPointPersistenceManager)(nil)
 
 type DataPointPersistenceManager struct {
 	*DynamoPersistenceManager
 }
-
-var _ IDataPointPersistenceManager = (*DataPointPersistenceManager)(nil)
 
 func (pm *DataPointPersistenceManager) GetKeys() models.ModelKeys {
 	return models.GetModelKeys(models.ModelTypeDataPoint)
@@ -68,15 +72,16 @@ func (pm *DataPointPersistenceManager) SaveNewDataPoints(ctx context.Context, dp
 	return nil
 }
 
-func (pm *DataPointPersistenceManager) GetDataPoints(ctx context.Context, name string) ([]models.DataPoint, genErr.IGenError) {
+func (pm *DataPointPersistenceManager) GetDataPointsInTimeRange(ctx context.Context, name string, startDate time.Time, endDate time.Time) ([]models.DataPoint, genErr.IGenError) {
 	keys := pm.GetKeys()
 	qi := dynamodb.QueryInput{
 		TableName: aws.String(pm.Config.MainTable),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":partitionKeyValue": &types.AttributeValueMemberS{Value: helpers.CreateCompositeKey(keys.Pk, name)},
-			":sortKeyValue":      &types.AttributeValueMemberS{Value: keys.Sk},
+			":startDate":         &types.AttributeValueMemberS{Value: helpers.CreateCompositeKey(keys.Sk, strconv.FormatInt(startDate.Unix(), 10))},
+			":endDate":           &types.AttributeValueMemberS{Value: helpers.CreateCompositeKey(keys.Sk, strconv.FormatInt(endDate.Unix(), 10))},
 		},
-		KeyConditionExpression: aws.String("pk = :partitionKeyValue and begins_with (sk, :sortKeyValue)"),
+		KeyConditionExpression: aws.String("pk = :partitionKeyValue and sk Between :startDate and :endDate"),
 	}
 
 	out, err := pm.Client.Query(ctx, &qi)

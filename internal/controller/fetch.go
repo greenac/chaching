@@ -8,7 +8,7 @@ import (
 	genErr "github.com/greenac/chaching/internal/error"
 	"github.com/greenac/chaching/internal/logger"
 	model "github.com/greenac/chaching/internal/rest/polygon/models"
-	fetch "github.com/greenac/chaching/internal/service"
+	"github.com/greenac/chaching/internal/service/fetch"
 	"strings"
 	"sync"
 	"time"
@@ -100,13 +100,13 @@ func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Ti
 		close(c)
 	}()
 
-	for _, t := range fc.Targets {
-		wg.Add(1)
+	wg.Add(len(fc.Targets))
 
+	for _, t := range fc.Targets {
 		go func(name string) {
 			defer func() {
 				if r := recover(); r != nil {
-					fc.Logger.Error().Msgf("FetchController:FetchGroup:panic recovered for name: %s, fetch params: %+v, from: %s, to: %s", name, fp, from.Format(time.RFC3339), to.Format(time.RFC3339))
+					fc.Logger.Error().Msgf("FetchController:FetchGroup:panic recovered for name: %s, fetch params: %+v, from: %s, to: %s, panic: %+v", name, fp, from.Format(time.RFC3339), to.Format(time.RFC3339), r)
 				}
 			}()
 
