@@ -133,7 +133,7 @@ func main() {
 			if sType != t {
 				sType = t
 				sales = append(sales, models.StockSale{
-					Name:   consts.Apple,
+					Name:   consts.Amazon,
 					Amount: AppleStartStockAmount,
 					Price:  sc.HighestPrice,
 					Type:   t,
@@ -142,7 +142,7 @@ func main() {
 		}
 	}
 
-	var amount float64
+	amount := sc1.OpenPrice
 	for _, s := range sales {
 		if s.Type == models.StockSaleTypeBuy {
 			amount -= s.Price
