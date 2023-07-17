@@ -1,3 +1,4 @@
 package chaching_kafka
 
-type DeadLetterModel
+type DeadLetterModel struct {
+}
