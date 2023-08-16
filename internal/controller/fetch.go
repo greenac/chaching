@@ -16,6 +16,7 @@ import (
 
 const SortDirection = model.PolygonAggregateSortDirectionAsc
 const ConcurrencyCount = 5
+const logCount = 200
 
 type FetchParams struct {
 	TimespanMultiplier int
@@ -53,8 +54,7 @@ type FetchController struct {
 }
 
 func (fc *FetchController) RunFetch(fp FetchParams) []genErr.IGenError {
-	const logCount = 200
-	genErrs := []genErr.IGenError{}
+	var genErrs []genErr.IGenError
 
 	times := fc.partitionTimes()
 	fc.Logger.Info(fmt.Sprintf("FetchController:RunFetch:fetch # of times: %d", len(times)))
@@ -63,7 +63,7 @@ func (fc *FetchController) RunFetch(fp FetchParams) []genErr.IGenError {
 
 		for j := i; j < i+ConcurrencyCount && j < len(times)-1; j += 1 {
 			if j%logCount == 0 {
-				fc.Logger.Info(fmt.Sprintf("FetchController:RunFetch:fetching from: %s to: %s", times[j].Format(time.RFC3339), times[j+1].Format(time.RFC3339)))
+				fc.Logger.Info(fmt.Sprintf("FetchController:RunFetch:fetching from: %s to: %s. Count: %d to %d", times[j].Format(time.RFC3339), times[j+1].Format(time.RFC3339), j, j+ConcurrencyCount))
 			}
 
 			wg.Add(1)
@@ -89,8 +89,8 @@ func (fc *FetchController) RunFetch(fp FetchParams) []genErr.IGenError {
 }
 
 func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Time) ([]models.DataPoint, []genErr.IGenError) {
-	genErrors := []genErr.IGenError{}
-	dataPts := []models.DataPoint{}
+	var genErrors []genErr.IGenError
+	var dataPts []models.DataPoint
 
 	wg := sync.WaitGroup{}
 	c := make(chan FetchTargetsRetVal)
@@ -168,7 +168,7 @@ func (fc *FetchController) FetchTargets(fp FetchTargetParams, c chan FetchTarget
 }
 
 func (fc *FetchController) partitionTimes() []time.Time {
-	times := []time.Time{}
+	var times []time.Time
 	t := fc.StartDate
 	startOfDay := fc.StartDate
 	endOfDay := fc.EndOfDay

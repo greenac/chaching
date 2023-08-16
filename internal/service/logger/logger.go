@@ -28,6 +28,11 @@ type ILogger interface {
 	Warn(msg string)
 	Error(msg string)
 	Debug(msg string)
+	SubLogger(props map[string]string) ILogger
+}
+
+func NewZeroLogWrapper(l zerolog.Logger, level LogLevel) ILogger {
+	return &ZeroLogWrapper{logger: l, logLevel: level}
 }
 
 var _ ILogger = (*ZeroLogWrapper)(nil)
@@ -51,6 +56,15 @@ func (l *ZeroLogWrapper) Error(msg string) {
 
 func (l *ZeroLogWrapper) Debug(msg string) {
 	l.log(logTypeDebug, msg)
+}
+
+func (l *ZeroLogWrapper) SubLogger(props map[string]string) ILogger {
+	log := l.logger
+	for k, v := range props {
+		log = log.With().Str(k, v).Logger()
+	}
+
+	return NewZeroLogWrapper(log, l.logLevel)
 }
 
 func (l *ZeroLogWrapper) log(lt logType, msg string) {

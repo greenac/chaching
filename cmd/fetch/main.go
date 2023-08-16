@@ -54,7 +54,7 @@ func main() {
 		panic(err)
 	}
 
-	end, err := time.Parse(time.RFC3339, "2022-09-13T16:00:00-04:00")
+	end, err := time.Parse(time.RFC3339, "2022-12-31T16:00:00-04:00")
 	if err != nil {
 		log.Error("main:failed to parse end time with error: " + err.Error())
 		panic(err)
@@ -84,7 +84,7 @@ func main() {
 		Logger:      log,
 		Unmarshaler: json.Unmarshal,
 		FetchService: fetch.FetchService{
-			Url: envVars.GetString("PolygonBaseUrl"),
+			Url: envVars.GetString("POLYGON_BASE_URL"),
 			RestClient: &rest.Client{
 				BaseHeaders: &models.Headers{"Authorization": models.HeaderValue{"Bearer " + envVars.GetString("POLYGON_API_KEY")}},
 				HttpClient:  &http.Client{Timeout: 30 * time.Second},

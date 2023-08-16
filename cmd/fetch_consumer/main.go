@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/greenac/chaching/internal/consts"
+	"github.com/greenac/chaching/internal/controller"
 	"github.com/greenac/chaching/internal/env"
 	"github.com/greenac/chaching/internal/service/chaching_kafka"
 	"github.com/greenac/chaching/internal/service/logger"
@@ -9,6 +10,7 @@ import (
 	"github.com/spf13/viper"
 	"os"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -20,7 +22,7 @@ func main() {
 		panic(err)
 	}
 
-	consumer := chaching_kafka.NewKafakConsumer(chaching_kafka.KafkaConsumerConfig{
+	consumer := chaching_kafka.NewKafkaConsumer(chaching_kafka.KafkaConsumerConfig{
 		Brokers:   strings.Split(envVars.GetString("KAFKA_BROKERS"), ","),
 		Topic:     consts.TopicNameFetch.String(),
 		Partition: envVars.GetInt("FETCH_CONSUMER_PARTITION"),
@@ -28,4 +30,6 @@ func main() {
 		GetReader: kafka.NewReader,
 	})
 
+	bc := chaching_kafka.NewBaseConsumer[controller.FetchMessage](consumer, nil, nil, log, 30*time.Minute)
+	bc.Consume()
 }
