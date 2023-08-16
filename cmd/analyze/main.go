@@ -22,7 +22,7 @@ const AppleStartStockAmount = 10
 
 func main() {
 	var logger zerolog.Logger
-	if os.Getenv("GoEnv") == string(env.GoEnvLocal) {
+	if os.Getenv("GO_ENV") == string(env.GoEnvLocal) {
 		logger = zerolog.New(os.Stdout).With().Logger().Output(zerolog.ConsoleWriter{Out: os.Stdout})
 	} else {
 		logger = zerolog.New(os.Stdout).With().Logger()
@@ -38,7 +38,7 @@ func main() {
 
 	config := models.DynamoConfig{
 		MainTable: envVars.GetString("DynamoMainTableName"),
-		Env:       env.GoEnv(envVars.GetString("GoEnv")),
+		Env:       env.GoEnv(envVars.GetString("GO_ENV")),
 		Region:    envVars.GetString("AwsRegion"),
 		Url:       envVars.GetString("DynamoUrl"),
 		Profile:   os.Getenv("AwsProfile"),
@@ -133,7 +133,7 @@ func main() {
 			if sType != t {
 				sType = t
 				sales = append(sales, models.StockSale{
-					Name:   consts.Apple,
+					Name:   consts.Amazon,
 					Amount: AppleStartStockAmount,
 					Price:  sc.HighestPrice,
 					Type:   t,
@@ -142,7 +142,7 @@ func main() {
 		}
 	}
 
-	var amount float64
+	amount := sc1.OpenPrice
 	for _, s := range sales {
 		if s.Type == models.StockSaleTypeBuy {
 			amount -= s.Price

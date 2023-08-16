@@ -38,7 +38,7 @@ type IEnv interface {
 
 var _ IEnv = (*Env)(nil)
 
-func NewEnv(filePath string, baseEnv IBaseEnv) (*Env, error) {
+func NewEnv(filePath string, baseEnv IBaseEnv) (IEnv, error) {
 	ret := &Env{BaseEnv: baseEnv}
 	if filePath == "" {
 		baseEnv.SetConfigName(".env")

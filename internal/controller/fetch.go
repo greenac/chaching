@@ -6,9 +6,9 @@ import (
 	"github.com/greenac/chaching/internal/database/models"
 	"github.com/greenac/chaching/internal/database/service"
 	genErr "github.com/greenac/chaching/internal/error"
-	"github.com/greenac/chaching/internal/logger"
 	model "github.com/greenac/chaching/internal/rest/polygon/models"
 	"github.com/greenac/chaching/internal/service/fetch"
+	"github.com/greenac/chaching/internal/service/logger"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +16,7 @@ import (
 
 const SortDirection = model.PolygonAggregateSortDirectionAsc
 const ConcurrencyCount = 5
+const logCount = 200
 
 type FetchParams struct {
 	TimespanMultiplier int
@@ -53,17 +54,16 @@ type FetchController struct {
 }
 
 func (fc *FetchController) RunFetch(fp FetchParams) []genErr.IGenError {
-	const logCount = 200
-	genErrs := []genErr.IGenError{}
+	var genErrs []genErr.IGenError
 
 	times := fc.partitionTimes()
-	fc.Logger.Info().Msg(fmt.Sprintf("FetchController:RunFetch:fetch # of times: %d", len(times)))
+	fc.Logger.Info(fmt.Sprintf("FetchController:RunFetch:fetch # of times: %d", len(times)))
 	for i := 0; i < len(times)-1; i += ConcurrencyCount {
 		wg := sync.WaitGroup{}
 
 		for j := i; j < i+ConcurrencyCount && j < len(times)-1; j += 1 {
 			if j%logCount == 0 {
-				fc.Logger.Info().Msg(fmt.Sprintf("FetchController:RunFetch:fetching from: %s to: %s", times[j].Format(time.RFC3339), times[j+1].Format(time.RFC3339)))
+				fc.Logger.Info(fmt.Sprintf("FetchController:RunFetch:fetching from: %s to: %s. Count: %d to %d", times[j].Format(time.RFC3339), times[j+1].Format(time.RFC3339), j, j+ConcurrencyCount))
 			}
 
 			wg.Add(1)
@@ -89,8 +89,8 @@ func (fc *FetchController) RunFetch(fp FetchParams) []genErr.IGenError {
 }
 
 func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Time) ([]models.DataPoint, []genErr.IGenError) {
-	genErrors := []genErr.IGenError{}
-	dataPts := []models.DataPoint{}
+	var genErrors []genErr.IGenError
+	var dataPts []models.DataPoint
 
 	wg := sync.WaitGroup{}
 	c := make(chan FetchTargetsRetVal)
@@ -106,7 +106,7 @@ func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Ti
 		go func(name string) {
 			defer func() {
 				if r := recover(); r != nil {
-					fc.Logger.Error().Msgf("FetchController:FetchGroup:panic recovered for name: %s, fetch params: %+v, from: %s, to: %s, panic: %+v", name, fp, from.Format(time.RFC3339), to.Format(time.RFC3339), r)
+					fc.Logger.Error(fmt.Sprintf("FetchController:FetchGroup:panic recovered for name: %s, fetch params: %+v, from: %s, to: %s, panic: %+v", name, fp, from.Format(time.RFC3339), to.Format(time.RFC3339), r))
 				}
 			}()
 
@@ -117,7 +117,7 @@ func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Ti
 
 	for rv := range c {
 		if rv.Error != nil {
-			fc.Logger.Error().Msg(rv.Error.Error())
+			fc.Logger.Error(rv.Error.Error())
 		} else {
 			dataPts = append(dataPts, rv.DataPoints...)
 		}
@@ -168,7 +168,7 @@ func (fc *FetchController) FetchTargets(fp FetchTargetParams, c chan FetchTarget
 }
 
 func (fc *FetchController) partitionTimes() []time.Time {
-	times := []time.Time{}
+	var times []time.Time
 	t := fc.StartDate
 	startOfDay := fc.StartDate
 	endOfDay := fc.EndOfDay

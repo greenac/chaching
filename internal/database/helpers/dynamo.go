@@ -11,7 +11,11 @@ import (
 	"strings"
 )
 
-const DatabaseKeySeparator = "="
+const (
+	DatabaseKeySeparator = "="
+	DynamoIndex1         = "ChachingIndex1"
+	DynamoIndex2         = "ChachingIndex2"
+)
 
 func DynamoClient(ctx context.Context, config models.DynamoConfig) (models.IDatabaseClient, genErr.IGenError) {
 	var cfg aws.Config
@@ -62,4 +66,24 @@ func CreateCompositeKey(key string, values ...string) string {
 	}
 
 	return key + val.String()
+}
+
+type GetDynamoConfigInput struct {
+	MainTable  string
+	Env        env.GoEnv
+	AwsRegion  string
+	DynamoUrl  string
+	AwsProfile string
+}
+
+func GetDynamoConfig(input GetDynamoConfigInput) models.DynamoConfig {
+	return models.DynamoConfig{
+		MainTable: input.MainTable,
+		Env:       input.Env,
+		Region:    input.AwsRegion,
+		Url:       input.DynamoUrl,
+		Profile:   input.AwsProfile,
+		Index1:    DynamoIndex1,
+		Index2:    DynamoIndex2,
+	}
 }
