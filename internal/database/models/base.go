@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/greenac/chaching/internal/env"
-	"time"
 )
 
 type DynamoConfig struct {
@@ -36,23 +35,36 @@ const (
 	ModelTypeTransaction ModelType = "transaction"
 )
 
+const (
+	DbPartitionKey = "pk"
+	DbSearchKey    = "sk"
+	DbGsi1Key      = "gsi1"
+	DbGsi2Key      = "gsi2"
+)
+
+type IDbModel interface {
+	Keys() ModelKeys
+}
+
 type BaseDbModel struct {
-	Pk        string    `json:"-" dynamodbav:"pk"`
-	Sk        string    `json:"-" dynamodbav:"sk"`
-	CreatedAt time.Time `json:"createdAt,omitempty" dynamodbav:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt,omitempty" dynamodbav:"updatedAt"`
+	Pk string `json:"-" dynamodbav:"pk"`
+	Sk string `json:"-" dynamodbav:"sk"`
 }
 
 type BaseDbModelWith1GlobalKeys struct {
 	BaseDbModel
-	GPK1 string `dynamodbav:"gpk1" json:"-"`
-	GSK1 string `dynamodbav:"gsk1" json:"-"`
+	GPK1 string `dynamodbav:"gpk1,omitempty" json:"-"`
+	GSK1 string `dynamodbav:"gsk1,omitempty" json:"-"`
 }
 
 type BaseDbModelWith2GlobalKeys struct {
 	BaseDbModelWith1GlobalKeys
-	GPK2 string `dynamodbav:"gpk2" json:"-"`
-	GSK2 string `dynamodbav:"gsk2" json:"-"`
+	GPK2 string `dynamodbav:"gpk2,omitempty" json:"-"`
+	GSK2 string `dynamodbav:"gsk2,omitempty" json:"-"`
+}
+
+type DataBaseModel struct {
+	BaseDbModelWith2GlobalKeys
 }
 
 type ModelKeys struct {
@@ -70,12 +82,12 @@ func GetModelKeys(mt ModelType) ModelKeys {
 	switch mt {
 	case ModelTypeCompany:
 		mk = ModelKeys{
-			Pk: "company#",
+			Pk: "type#company#",
 			Sk: "companyName#",
 		}
 	case ModelTypeDataPoint:
 		mk = ModelKeys{
-			Pk: "companyName#",
+			Pk: "type#dataPoint#compay#",
 			Sk: "timeStamp#",
 		}
 	case ModelTypeTransaction:

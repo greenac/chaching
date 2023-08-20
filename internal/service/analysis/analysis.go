@@ -47,7 +47,7 @@ func (as *AnalysisService) FindSlopeChanges(points []models.DataPoint) []SlopeCh
 	slopeChanges := []SlopeChange{}
 	var slopeSign = slopeValPos
 
-	for i := 0; i < len(points)-1; i += 1 {
+	for i := 0; i < len(points)-2; i += 1 {
 		pt1 := points[i]
 		pt2 := points[i+1]
 
@@ -80,8 +80,9 @@ func (as *AnalysisService) slopeSign(slope float64) slopeVal {
 func (as *AnalysisService) CalcSlopeNormalizationFactor(slopes []SlopeChange) float64 {
 	var max float64 = 0
 	for _, s := range slopes {
-		if math.Abs(s.Slope) > max {
-			max = math.Abs(s.Slope)
+		absSlope := math.Abs(s.Slope)
+		if absSlope > max {
+			max = absSlope
 		}
 	}
 

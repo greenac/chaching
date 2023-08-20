@@ -14,6 +14,10 @@ deletedb:
 createtopics:
 	GoEnv=local GO111MODULE=on go run cmd/kafka/main.go
 
+.PHONY: analyze
+analyze:
+	GoEnv=local GO111MODULE=on go run cmd/analyze/main.go
+
 .PHONY: reset
 reset: deletedb createdb fetch
 

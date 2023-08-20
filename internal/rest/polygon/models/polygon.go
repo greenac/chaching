@@ -25,7 +25,7 @@ const (
 )
 
 type PolygonAggregateRequestParams struct {
-	Name          string
+	CompanyName   string
 	Multiplier    int
 	Timespan      PolygonAggregateTimespan
 	From          time.Time
@@ -37,7 +37,7 @@ type PolygonAggregateRequestParams struct {
 func (pr PolygonAggregateRequestParams) Url() string {
 	return fmt.Sprintf(
 		"%s/range/%d/%s/%d/%d?adjusted=false&sort=%s&limit=%d",
-		pr.Name, pr.Multiplier, pr.Timespan, pr.From.UnixMilli(), pr.To.UnixMilli(), pr.SortDirection, pr.Limit,
+		pr.CompanyName, pr.Multiplier, pr.Timespan, pr.From.UnixMilli(), pr.To.UnixMilli(), pr.SortDirection, pr.Limit,
 	)
 }
 

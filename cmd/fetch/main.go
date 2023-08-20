@@ -7,12 +7,13 @@ import (
 	"github.com/greenac/chaching/internal/consts"
 	"github.com/greenac/chaching/internal/controller"
 	"github.com/greenac/chaching/internal/database/helpers"
-	"github.com/greenac/chaching/internal/database/managers"
+	dbModels "github.com/greenac/chaching/internal/database/models"
 	"github.com/greenac/chaching/internal/database/service"
 	"github.com/greenac/chaching/internal/env"
 	rest "github.com/greenac/chaching/internal/rest/client"
 	"github.com/greenac/chaching/internal/rest/models"
 	model "github.com/greenac/chaching/internal/rest/polygon/models"
+	"github.com/greenac/chaching/internal/service/database"
 	"github.com/greenac/chaching/internal/service/fetch"
 	"github.com/greenac/chaching/internal/service/logger"
 	"github.com/greenac/chaching/internal/utils"
@@ -42,47 +43,38 @@ func main() {
 		AwsProfile: os.Getenv("AWS_PROFILE"),
 	})
 
+	start, err := time.Parse(time.RFC3339, "2023-03-01T09:30:00-04:00")
+	if err != nil {
+		log.Error("main:failed to parse start time with error: " + err.Error())
+		panic(err)
+	}
+
+	end, err := time.Parse(time.RFC3339, "2023-08-01T16:00:00-04:00")
+	if err != nil {
+		log.Error("main:failed to parse end time with error: " + err.Error())
+		panic(err)
+	}
+
+	endOfDay := time.Date(start.Year(), start.Month(), start.Day(), 16, 0, 0, 0, start.Location())
+
 	client, ge := helpers.DynamoClient(context.Background(), config)
 	if ge != nil {
 		log.Error("main:failed to create dynamo table with error: " + ge.Error())
 		panic(ge)
 	}
 
-	start, err := time.Parse(time.RFC3339, "2022-09-05T09:30:00-04:00")
-	if err != nil {
-		log.Error("main:failed to parse start time with error: " + err.Error())
-		panic(err)
-	}
-
-	end, err := time.Parse(time.RFC3339, "2022-12-31T16:00:00-04:00")
-	if err != nil {
-		log.Error("main:failed to parse end time with error: " + err.Error())
-		panic(err)
-	}
-
-	endOfDay, err := time.Parse(time.RFC3339, "2022-09-05T16:00:00-04:00")
-	if err != nil {
-		log.Error("main:failed to parse end time with error: " + err.Error())
-		panic(err)
-	}
+	db := database.NewDatabase[dbModels.DbDataPoint](client, 25, envVars.GetString("DYNAMO_MAIN_TABLE_NAME"), attributevalue.MarshalMap, attributevalue.UnmarshalMap)
 
 	fc := controller.FetchController{
-		Targets:        []string{consts.Apple, consts.Amazon},
-		StartDate:      start,
-		EndDate:        end,
-		StartOfDay:     start,
-		EndOfDay:       endOfDay,
-		PartitionValue: time.Minute,
-		DatabaseService: service.DatabaseService{
-			DataPointPM: &managers.DataPointPersistenceManager{DynamoPersistenceManager: &managers.DynamoPersistenceManager{
-				Client:         client,
-				Ctx:            context.Background(),
-				Config:         config,
-				AttrMarshaller: attributevalue.MarshalMap,
-			}},
-		},
-		Logger:      log,
-		Unmarshaler: json.Unmarshal,
+		Targets:         []string{consts.Apple, consts.Amazon},
+		StartDate:       start,
+		EndDate:         end,
+		StartOfDay:      start,
+		EndOfDay:        endOfDay,
+		PartitionValue:  time.Minute,
+		DatabaseService: service.NewDatabaseService(db),
+		Logger:          log,
+		Unmarshaler:     json.Unmarshal,
 		FetchService: fetch.FetchService{
 			Url: envVars.GetString("POLYGON_BASE_URL"),
 			RestClient: &rest.Client{
