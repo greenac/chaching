@@ -26,9 +26,9 @@ type FetchParams struct {
 
 type FetchTargetParams struct {
 	FetchParams
-	Name string
-	From time.Time
-	To   time.Time
+	CompanyName string
+	From        time.Time
+	To          time.Time
 }
 
 type FetchTarget struct {
@@ -48,7 +48,7 @@ type FetchController struct {
 	EndDate         time.Time
 	PartitionValue  time.Duration
 	FetchService    fetch.FetchService
-	DatabaseService service.DatabaseService
+	DatabaseService service.IDatabaseService
 	Logger          logger.ILogger
 	Unmarshaler     func(data []byte, v any) error
 }
@@ -100,19 +100,18 @@ func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Ti
 		close(c)
 	}()
 
-	wg.Add(len(fc.Targets))
-
-	for _, t := range fc.Targets {
-		go func(name string) {
+	for _, name := range fc.Targets {
+		wg.Add(1)
+		go func(n string) {
 			defer func() {
 				if r := recover(); r != nil {
-					fc.Logger.Error(fmt.Sprintf("FetchController:FetchGroup:panic recovered for name: %s, fetch params: %+v, from: %s, to: %s, panic: %+v", name, fp, from.Format(time.RFC3339), to.Format(time.RFC3339), r))
+					fc.Logger.Error(fmt.Sprintf("FetchController:FetchGroup:panic recovered for name: %s, fetch params: %+v, from: %s, to: %s, panic: %+v", n, fp, from.Format(time.RFC3339), to.Format(time.RFC3339), r))
 				}
 			}()
 
 			defer wg.Done()
-			fc.FetchTargets(FetchTargetParams{FetchParams: fp, Name: name, From: from, To: to}, c)
-		}(t)
+			fc.FetchTargets(FetchTargetParams{FetchParams: fp, CompanyName: n, From: from, To: to}, c)
+		}(name)
 	}
 
 	for rv := range c {
@@ -128,7 +127,7 @@ func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Ti
 
 func (fc *FetchController) FetchTargets(fp FetchTargetParams, c chan FetchTargetsRetVal) {
 	rps := model.PolygonAggregateRequestParams{
-		Name:          fp.Name,
+		CompanyName:   fp.CompanyName,
 		Multiplier:    fp.TimespanMultiplier,
 		Timespan:      fp.Timespan,
 		From:          fp.From,
@@ -147,21 +146,21 @@ func (fc *FetchController) FetchTargets(fp FetchTargetParams, c chan FetchTarget
 	err := fc.Unmarshaler(body, &pr)
 	if err != nil {
 		c <- FetchTargetsRetVal{
-			Error: &genErr.GenError{Messages: []string{"FetchController:FetchTargets:failed to unmarshall with err: " + err.Error() + " for: " + fp.Name}},
+			Error: &genErr.GenError{Messages: []string{"FetchController:FetchTargets:failed to unmarshall with err: " + err.Error() + " for: " + fp.CompanyName}},
 		}
 		return
 	}
 
 	if strings.ToLower(pr.Status) != "ok" {
 		c <- FetchTargetsRetVal{
-			Error: &genErr.GenError{Messages: []string{"FetchController:FetchTargets:failed for: " + fp.Name + " with status: " + pr.Status + " at time: " + fp.From.Format(time.RFC3339)}},
+			Error: &genErr.GenError{Messages: []string{"FetchController:FetchTargets:failed for: " + fp.CompanyName + " with status: " + pr.Status + " at time: " + fp.From.Format(time.RFC3339)}},
 		}
 		return
 	}
 
 	dps := make([]models.DataPoint, len(pr.DataPoints))
 	for i, dp := range pr.DataPoints {
-		dps[i] = models.DataPoint{Name: fp.Name, PolygonDataPoint: dp}
+		dps[i] = models.DataPoint{CompanyName: fp.CompanyName, PolygonDataPoint: dp}
 	}
 
 	c <- FetchTargetsRetVal{DataPoints: dps}

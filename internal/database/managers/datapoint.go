@@ -46,7 +46,7 @@ func (pm *DataPointPersistenceManager) SaveNewDataPoints(ctx context.Context, dp
 		points := dps[i:ri]
 		wrs := make([]types.WriteRequest, len(points))
 		for i, m := range points {
-			m.Pk = helpers.CreateCompositeKey(keys.Pk, m.Name)
+			m.Pk = helpers.CreateCompositeKey(keys.Pk, m.CompanyName)
 			m.Sk = helpers.CreateCompositeKey(keys.Sk, strconv.FormatInt(m.StartTime, 10))
 			m.CreatedAt = time.Now()
 			mdps, err := pm.AttrMarshaller(m)
