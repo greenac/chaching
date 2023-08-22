@@ -2,18 +2,14 @@ package controller
 
 import (
 	"context"
-	"errors"
-	"github.com/greenac/chaching/internal/consts"
-	"github.com/greenac/chaching/internal/database/models"
 	"github.com/greenac/chaching/internal/database/service"
+	error2 "github.com/greenac/chaching/internal/error"
 	"github.com/greenac/chaching/internal/service/analysis"
 	"github.com/greenac/chaching/internal/service/logger"
-	"math"
-	"sort"
 	"time"
 )
 
-const AppleStartStockAmount = 10
+const NumOfStocks = 1
 const sellStep float64 = 0.01
 
 type SaleAmount struct {
@@ -35,16 +31,14 @@ type AnalysisController struct {
 	logger          logger.ILogger
 }
 
-func (ctr *AnalysisController) BuySellInflectionPoint(startDate time.Time, endDate time.Time) (float64, error) {
-	dps, err := ctr.databaseService.GetDataPointsInTimeRange(context.Background(), consts.Apple, startDate, endDate)
+func (ctr *AnalysisController) BuySellInflectionPoint(company string, startDate time.Time, endDate time.Time) (float64, error) {
+	dps, err := ctr.databaseService.GetDataPointsInTimeRange(context.Background(), company, startDate, endDate)
 	if err != nil {
 		ctr.logger.Error("main:failed to retrieve data with error: " + err.Error())
 		panic(err)
 	}
 
 	slopeChanges := ctr.analysisService.FindSlopeChanges(dps)
-
-	ctr.logger.InfoFmt("number of slope changes: %d", len(slopeChanges))
 
 	normFactor := ctr.analysisService.CalcSlopeNormalizationFactor(slopeChanges)
 
@@ -53,71 +47,23 @@ func (ctr *AnalysisController) BuySellInflectionPoint(startDate time.Time, endDa
 		slopeChanges[i] = sc
 	}
 
-	sort.Slice(slopeChanges, func(i, j int) bool {
-		return slopeChanges[i].Time.Before(slopeChanges[j].Time)
-	})
-
-	if len(slopeChanges) == 0 {
-		ctr.logger.Error("main:no slope changes")
-		return 0, errors.New("no slope change")
-	}
-
 	var amounts []SaleAmount
 	sellPoint := 0.01
 
 	for sellPoint < 1 {
-		sc1 := slopeChanges[0]
-
-		ctr.logger.InfoFmt("main: open price: %f, end price: %f, day diff %f", sc1.OpenPrice, sc1.ClosePrice, sc1.ClosePrice-sc1.OpenPrice)
-
-		var saleType models.StockSaleType
-		if sc1.NormalizedSlope > 0 {
-			saleType = models.StockSaleTypeBuy
-		} else {
-			saleType = models.StockSaleTypeSell
+		sales, err := ctr.analysisService.CalcSales(company, NumOfStocks, slopeChanges, sellPoint)
+		if err != nil {
+			return 0, err
 		}
 
-		var sales []models.StockSale
-		for i := 1; i < len(slopeChanges); i += 1 {
-			sc := slopeChanges[i]
-			if math.Abs(sc.NormalizedSlope) >= sellPoint {
-				st := models.StockSaleTypeBuy
-				if sc.NormalizedSlope < 0 {
-					st = models.StockSaleTypeSell
-				}
-
-				if saleType != st {
-					saleType = st
-					sales = append(sales, models.StockSale{
-						Name:   consts.Apple,
-						Amount: AppleStartStockAmount,
-						Price:  sc.HighestPrice,
-						Type:   st,
-					})
-				}
-			}
-		}
-
-		amount := sc1.OpenPrice
-		for i, s := range sales {
-			if s.Type == models.StockSaleTypeBuy {
-				amount -= s.Price
-				ctr.logger.InfoFmt("index: %d, buying at: %f amount: %f", i, s.Price, amount)
-			} else {
-				amount += s.Price
-				ctr.logger.InfoFmt("index: %d, selling at: %f amount: %f", i, s.Price, amount)
-			}
-		}
-
-		amounts = append(amounts, SaleAmount{Amount: amount, SellPoint: sellPoint})
+		amounts = append(amounts, SaleAmount{Amount: ctr.analysisService.CalcAmount(slopeChanges[0].OpenPrice, sales), SellPoint: sellPoint})
 
 		sellPoint += sellStep
 	}
 
 	var maxSellPoint float64 = 0
 	var maxAmount float64 = 0
-	for i, a := range amounts {
-		ctr.logger.InfoFmt("Amount %d = %f, Sell Point: %f", i, a.Amount, a.SellPoint)
+	for _, a := range amounts {
 		if a.Amount > maxAmount {
 			maxAmount = a.Amount
 			maxSellPoint = a.SellPoint
@@ -125,4 +71,61 @@ func (ctr *AnalysisController) BuySellInflectionPoint(startDate time.Time, endDa
 	}
 
 	return maxSellPoint, nil
+}
+
+func (ctr *AnalysisController) InflectionPointsInRange(company string, startDate time.Time, endDate time.Time) ([]float64, error) {
+	var genErr error2.IGenError
+	var inflections []float64
+	date := startDate
+	for endDate.After(date) {
+		saveSlope := true
+		nextDay := date.AddDate(0, 0, 1)
+		ip, err := ctr.BuySellInflectionPoint(company, date, nextDay)
+		if err != nil {
+			if err.Error() != "no slope changes" {
+				ctr.logger.Error("AnalysisController->InflectionPointsInRange:failed to get inflection point with error: " + err.Error())
+				_ = genErr.AddMsg(err.Error())
+			}
+			saveSlope = false
+		}
+
+		if saveSlope {
+			inflections = append(inflections, ip)
+		}
+
+		date = nextDay
+	}
+
+	return inflections, nil
+}
+
+func (ctr *AnalysisController) AmountsByDay(company string, numOfStocks int, sellPoint float64, startDate time.Time, endDate time.Time) (map[time.Time]float64, error) {
+	amounts := map[time.Time]float64{}
+	date := startDate
+	for endDate.After(date) {
+		ed := time.Date(date.Year(), date.Month(), date.Day(), endDate.Hour(), endDate.Minute(), 0, 0, date.Location())
+		dps, err := ctr.databaseService.GetDataPointsInTimeRange(context.Background(), company, date, ed)
+		if err != nil {
+			ctr.logger.Error("AnalysisController->AmountsByDay:failed to retrieve data with error: " + err.Error())
+			return amounts, err
+		}
+
+		slopeChanges := ctr.analysisService.FindSlopeChanges(dps)
+
+		normFactor := ctr.analysisService.CalcSlopeNormalizationFactor(slopeChanges)
+
+		for i, sc := range slopeChanges {
+			sc.NormalizeSlope(normFactor)
+			slopeChanges[i] = sc
+		}
+
+		sales, gErr := ctr.analysisService.CalcSales(company, numOfStocks, slopeChanges, sellPoint)
+		if err != nil {
+			ctr.logger.Error("AnalysisController->AmountsByDay:failed to calculate sales with error: " + gErr.Error())
+			return map[time.Time]float64{}, gErr
+		}
+
+		amounts[date] = ctr.analysisService.CalcAmount(slopeChanges[0].OpenPrice, sales)
+
+	}
 }

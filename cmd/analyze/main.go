@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/greenac/chaching/internal/consts"
 	"github.com/greenac/chaching/internal/controller"
 	"github.com/greenac/chaching/internal/database/helpers"
 	"github.com/greenac/chaching/internal/database/models"
@@ -25,7 +26,7 @@ func main() {
 		zeroLogger = zerolog.New(os.Stdout).With().Logger()
 	}
 
-	log := logger.NewZeroLogWrapper(zeroLogger, logger.LogLevelDebug)
+	log := logger.NewZeroLogWrapper(zeroLogger, logger.LogLevelInfo)
 	log.Info("Running create analyze")
 
 	envVars, err := env.NewEnv(".env", viper.New())
@@ -44,7 +45,7 @@ func main() {
 		Index2:    "ChachingIndex2",
 	}
 
-	startDate, err := time.Parse(time.RFC3339, "2023-01-01T06:29:00-07:00")
+	startDate, err := time.Parse(time.RFC3339, "2022-01-01T06:29:00-07:00")
 	if err != nil {
 		panic(err)
 	}
@@ -62,12 +63,18 @@ func main() {
 	db := database.NewDatabase[models.DbDataPoint](client, 25, envVars.GetString("DYNAMO_MAIN_TABLE_NAME"), attributevalue.MarshalMap, attributevalue.UnmarshalMap)
 
 	analysisController := controller.NewAnalysisController(log, analysis.NewAnalysisService(), service.NewDatabaseService(db))
-	tippingPoint, err := analysisController.BuySellInflectionPoint(startDate, endDate)
+	tippingPoints, err := analysisController.InflectionPointsInRange(consts.Apple, startDate, endDate)
 	if err != nil {
 		panic(err)
 	}
 
-	log.InfoFmt("tipping point = %f", tippingPoint)
+	tippingPointTotal := 0.0
+	for i, tp := range tippingPoints {
+		log.InfoFmt("%d tp: %f", i, tp)
+		tippingPointTotal += tp
+	}
+
+	log.InfoFmt("tipping point = %f", tippingPointTotal/float64(len(tippingPoints)))
 
 	log.Info("main:finished analysis")
 }
