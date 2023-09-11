@@ -1,0 +1,10 @@
+GoEnv=local
+
+PolygonUserName=Default
+PolygonApiKey=ttyUIMp32wTlMv4gGW_dMEORH3mckvxf
+PolygonBaseUrl=https://api.polygon.io/v2/aggs/ticker
+
+AwsRegion=us-west-1
+
+DynamoMainTableName=Chaching
+DynamoUrl="http://localhost:8000"

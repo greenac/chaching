@@ -90,27 +90,23 @@ func (fc *FetchController) RunFetch(fp FetchParams) []genErr.IGenError {
 		}
 	}()
 
+	var errors []genErr.IGenError
 	for msg := range msgChan {
-
+		if msg.Result.Errors != nil && len(*msg.Result.Errors) > 0 {
+			errors = append(errors, *msg.Result.Errors...)
+		}
 	}
 
-	return genErrs
+	return errors
 }
 
 func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Time) ([]models.DataPoint, []genErr.IGenError) {
 	var genErrors []genErr.IGenError
 	var dataPts []models.DataPoint
 
-	wg := sync.WaitGroup{}
-	c := make(chan FetchTargetsRetVal)
-
-	go func() {
-		wg.Wait()
-		close(c)
-	}()
+	c := make(chan FetchTargetsRetVal, len(fc.Targets))
 
 	for _, name := range fc.Targets {
-		wg.Add(1)
 		go func(n string) {
 			defer func() {
 				if r := recover(); r != nil {
@@ -118,16 +114,15 @@ func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Ti
 				}
 			}()
 
-			defer wg.Done()
-			fc.FetchTargets(FetchTargetParams{FetchParams: fp, CompanyName: n, From: from, To: to}, c)
+			dps, gErr := fc.FetchTargets(FetchTargetParams{FetchParams: fp, CompanyName: n, From: from, To: to})
+			c <- FetchTargetsRetVal{DataPoints: dps, Error: gErr}
 		}(name)
 	}
 
-	for rv := range c {
-		if rv.Error != nil {
-			fc.Logger.Error(rv.Error.Error())
-		} else {
-			dataPts = append(dataPts, rv.DataPoints...)
+	for r := range c {
+		dataPts = append(dataPts, r.DataPoints...)
+		if r.Error != nil {
+			genErrors = append(genErrors, r.Error)
 		}
 	}
 
