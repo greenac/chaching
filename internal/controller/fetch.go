@@ -9,6 +9,7 @@ import (
 	model "github.com/greenac/chaching/internal/rest/polygon/models"
 	"github.com/greenac/chaching/internal/service/fetch"
 	"github.com/greenac/chaching/internal/service/logger"
+	"github.com/greenac/chaching/internal/worker"
 	"strings"
 	"sync"
 	"time"
@@ -53,36 +54,44 @@ type FetchController struct {
 	Unmarshaler     func(data []byte, v any) error
 }
 
+type FetchTaskResult struct {
+	DataPoints []models.DataPoint
+	Errors     *[]genErr.IGenError
+}
+
 func (fc *FetchController) RunFetch(fp FetchParams) []genErr.IGenError {
-	var genErrs []genErr.IGenError
+	msgChan := make(chan worker.Message[FetchTaskResult])
 
 	times := fc.partitionTimes()
 	fc.Logger.Info(fmt.Sprintf("FetchController:RunFetch:fetch # of times: %d", len(times)))
-	for i := 0; i < len(times)-1; i += ConcurrencyCount {
-		wg := sync.WaitGroup{}
 
-		for j := i; j < i+ConcurrencyCount && j < len(times)-1; j += 1 {
-			if j%logCount == 0 {
-				fc.Logger.Info(fmt.Sprintf("FetchController:RunFetch:fetching from: %s to: %s. Count: %d to %d", times[j].Format(time.RFC3339), times[j+1].Format(time.RFC3339), j, j+ConcurrencyCount))
-			}
+	wrkr := worker.NewWorker(10, msgChan)
+	wrkr.Work()
 
-			wg.Add(1)
-
+	go func() {
+		for i := 0; i < len(times)-1; i += 2 {
 			go func(from time.Time, to time.Time) {
-				defer wg.Done()
-				dps, errs := fc.FetchGroup(fp, from, to)
-				if errs != nil {
-					genErrs = append(genErrs, errs...)
-				}
+				task := func() FetchTaskResult {
+					var genErrs []genErr.IGenError
+					dps, errs := fc.FetchGroup(fp, from, to)
+					if errs != nil {
+						genErrs = append(genErrs, errs...)
+					}
 
-				gErrs := fc.DatabaseService.SaveDataPoints(context.Background(), dps)
-				if gErrs != nil {
-					genErrs = append(genErrs, *gErrs...)
+					gErrs := fc.DatabaseService.SaveDataPoints(context.Background(), dps)
+					if gErrs != nil {
+						genErrs = append(genErrs, *gErrs...)
+					}
+
+					return FetchTaskResult{DataPoints: dps, Errors: gErrs}
 				}
-			}(times[j], times[j+1])
+				wrkr.AddTask(task)
+			}(times[i], times[i+1])
 		}
+	}()
 
-		wg.Wait()
+	for msg := range msgChan {
+
 	}
 
 	return genErrs
@@ -125,7 +134,7 @@ func (fc *FetchController) FetchGroup(fp FetchParams, from time.Time, to time.Ti
 	return dataPts, genErrors
 }
 
-func (fc *FetchController) FetchTargets(fp FetchTargetParams, c chan FetchTargetsRetVal) {
+func (fc *FetchController) FetchTargets(fp FetchTargetParams) ([]models.DataPoint, genErr.IGenError) {
 	rps := model.PolygonAggregateRequestParams{
 		CompanyName:   fp.CompanyName,
 		Multiplier:    fp.TimespanMultiplier,
@@ -138,24 +147,20 @@ func (fc *FetchController) FetchTargets(fp FetchTargetParams, c chan FetchTarget
 
 	body, ge := fc.FetchService.FetchWithFetchData(rps)
 	if ge != nil {
-		c <- FetchTargetsRetVal{Error: ge}
-		return
+		return []models.DataPoint{}, ge
 	}
 
 	pr := model.PolygonAggregateResponse{}
 	err := fc.Unmarshaler(body, &pr)
 	if err != nil {
-		c <- FetchTargetsRetVal{
-			Error: &genErr.GenError{Messages: []string{"FetchController:FetchTargets:failed to unmarshall with err: " + err.Error() + " for: " + fp.CompanyName}},
-		}
-		return
+		return []models.DataPoint{}, genErr.GenError{Messages: []string{"FetchController:FetchTargets:failed to unmarshall with err: " + err.Error() + " for: " + fp.CompanyName}}
 	}
 
 	if strings.ToLower(pr.Status) != "ok" {
 		c <- FetchTargetsRetVal{
 			Error: &genErr.GenError{Messages: []string{"FetchController:FetchTargets:failed for: " + fp.CompanyName + " with status: " + pr.Status + " at time: " + fp.From.Format(time.RFC3339)}},
 		}
-		return
+		return []models
 	}
 
 	dps := make([]models.DataPoint, len(pr.DataPoints))

@@ -35,7 +35,7 @@ func (ctr *AnalysisController) BuySellInflectionPoint(company string, startDate 
 	dps, err := ctr.databaseService.GetDataPointsInTimeRange(context.Background(), company, startDate, endDate)
 	if err != nil {
 		ctr.logger.Error("main:failed to retrieve data with error: " + err.Error())
-		panic(err)
+		return 0, err
 	}
 
 	slopeChanges := ctr.analysisService.FindSlopeChanges(dps)
@@ -126,6 +126,7 @@ func (ctr *AnalysisController) AmountsByDay(company string, numOfStocks int, sel
 		}
 
 		amounts[date] = ctr.analysisService.CalcAmount(slopeChanges[0].OpenPrice, sales)
-
 	}
+
+	return amounts, nil
 }
