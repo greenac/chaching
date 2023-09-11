@@ -11,7 +11,6 @@ import (
 	"github.com/greenac/chaching/internal/service/logger"
 	"github.com/greenac/chaching/internal/worker"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -152,10 +151,7 @@ func (fc *FetchController) FetchTargets(fp FetchTargetParams) ([]models.DataPoin
 	}
 
 	if strings.ToLower(pr.Status) != "ok" {
-		c <- FetchTargetsRetVal{
-			Error: &genErr.GenError{Messages: []string{"FetchController:FetchTargets:failed for: " + fp.CompanyName + " with status: " + pr.Status + " at time: " + fp.From.Format(time.RFC3339)}},
-		}
-		return []models
+		return []models.DataPoint{}, &genErr.GenError{Messages: []string{"FetchController:FetchTargets:failed for: " + fp.CompanyName + " with status: " + pr.Status + " at time: " + fp.From.Format(time.RFC3339)}}
 	}
 
 	dps := make([]models.DataPoint, len(pr.DataPoints))
@@ -163,7 +159,7 @@ func (fc *FetchController) FetchTargets(fp FetchTargetParams) ([]models.DataPoin
 		dps[i] = models.DataPoint{CompanyName: fp.CompanyName, PolygonDataPoint: dp}
 	}
 
-	c <- FetchTargetsRetVal{DataPoints: dps}
+	return dps, nil
 }
 
 func (fc *FetchController) partitionTimes() []time.Time {
