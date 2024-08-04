@@ -1,9 +1,11 @@
 package analysis
 
 import (
+	"errors"
 	"github.com/greenac/chaching/internal/database/models"
 	"github.com/greenac/chaching/internal/utils"
 	"math"
+	"sort"
 	"time"
 )
 
@@ -26,8 +28,10 @@ const (
 )
 
 type IAnalysisService interface {
-	FindSlopeChanges(points []models.DataPoint) []SlopeChange
+	CalcAmount(startPrice float64, sales []models.StockSale) float64
+	CalcSales(company string, numOfStocks int, slopeChanges []SlopeChange, sellPoint float64) ([]models.StockSale, error)
 	CalcSlopeNormalizationFactor(slopes []SlopeChange) float64
+	FindSlopeChanges(points []models.DataPoint) []SlopeChange
 	SlopeAbsMidpoint(slopes []SlopeChange) float64
 }
 
@@ -96,4 +100,57 @@ func (as *AnalysisService) SlopeAbsMidpoint(slopes []SlopeChange) float64 {
 	}
 
 	return utils.MidPoint(slps)
+}
+
+func (as *AnalysisService) CalcSales(company string, numOfStocks int, slopeChanges []SlopeChange, sellPoint float64) ([]models.StockSale, error) {
+	sort.Slice(slopeChanges, func(i, j int) bool {
+		return slopeChanges[i].Time.Before(slopeChanges[j].Time)
+	})
+
+	if len(slopeChanges) == 0 {
+		return []models.StockSale{}, errors.New("no slope changes")
+	}
+
+	var saleType models.StockSaleType
+	if slopeChanges[0].NormalizedSlope > 0 {
+		saleType = models.StockSaleTypeBuy
+	} else {
+		saleType = models.StockSaleTypeSell
+	}
+
+	var sales []models.StockSale
+	for i := 1; i < len(slopeChanges); i += 1 {
+		sc := slopeChanges[i]
+		if math.Abs(sc.NormalizedSlope) >= sellPoint {
+			st := models.StockSaleTypeBuy
+			if sc.NormalizedSlope < 0 {
+				st = models.StockSaleTypeSell
+			}
+
+			if saleType != st {
+				saleType = st
+				sales = append(sales, models.StockSale{
+					Name:   company,
+					Amount: numOfStocks,
+					Price:  sc.HighestPrice,
+					Type:   st,
+				})
+			}
+		}
+	}
+
+	return sales, nil
+}
+
+func (as *AnalysisService) CalcAmount(startPrice float64, sales []models.StockSale) float64 {
+	amount := startPrice
+	for _, s := range sales {
+		if s.Type == models.StockSaleTypeBuy {
+			amount -= s.Price
+		} else {
+			amount += s.Price
+		}
+	}
+
+	return amount
 }
